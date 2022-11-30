@@ -152,6 +152,18 @@ def depth_to_pc(obs_config, task_name):
     demos = get_stored_demos(-1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=6)
     return demos
 
+def transform_point_cloud(transform, point_cloud)-> np.ndarray:
+
+    print("Before shape:", point_cloud.shape)
+
+    num_points = point_cloud.shape[0]
+    homogeneous_column = np.ones((num_points, 1))
+    point_cloud_one_added = np.append(point_cloud, homogeneous_column, axis=1)
+
+    transformed_point_cloud = np.matmul(transform, np.transpose(point_cloud_one_added))
+    transformed_pc_one_removed = np.transpose(transformed_point_cloud)[:, :3]
+
+    return transformed_pc_one_removed
 
 PATH = "/home/nasir/Desktop/Demos/reach_target/variation0/episodes/episode0"
 
@@ -208,20 +220,47 @@ overhead_depth = image_to_float_array(_resize_if_needed(Image.open(overhead_img_
 overhead_depth_m = overhead_near + overhead_depth * (overhead_far - overhead_near)
 
 
-left_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(left_shoulder_depth_m, left_shoulder_extrinsic, left_shoulder_intrinsic)
-right_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(right_shoulder_depth_m, right_shoulder_extrinsic, right_shoulder_intrinsic)
-front_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(front_depth_m, front_extrinsic, front_intrinsic)
-wrist_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(wrist_depth_m, wrist_extrinsic, wrist_intrinsic)
-overhead_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_depth_m, overhead_extrinsic, overhead_intrinsic)
+left_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(left_shoulder_depth_m, left_shoulder_extrinsic, left_shoulder_intrinsic).reshape(-1,3)
+right_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(right_shoulder_depth_m, right_shoulder_extrinsic, right_shoulder_intrinsic).reshape(-1,3)
+front_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(front_depth_m, front_extrinsic, front_intrinsic).reshape(-1,3)
+wrist_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(wrist_depth_m, wrist_extrinsic, wrist_intrinsic).reshape(-1,3)
+overhead_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_depth_m, overhead_extrinsic, overhead_intrinsic).reshape(-1,3)
 
-# Extrinsic = world to camera
+# Extrinsic = world frame to camera frame
 
 
 # visualise_pc(left_shoulder_point_cloud)
 # visualise_pc(right_shoulder_point_cloud)
 # visualise_pc(front_point_cloud)
-visualise_pc(wrist_point_cloud)
+# print(front_point_cloud.shape)
+# true_pc = front_point_cloud.reshape(-1,3)
+# print(true_pc.shape)
+# pyvista.plot(true_pc)
+# visualise_pc(wrist_point_cloud)
 # visualise_pc(overhead_point_cloud)
+
+# print(front_point_cloud)
+
+# pyvista.plot(
+#     front_point_cloud,
+#     scalars=front_point_cloud[:, 2],
+#     render_points_as_spheres=True,
+#     point_size=4,
+#     show_scalar_bar=False,)
+
+# ls_pc_world = 
+# rs_pc_world = 
+front_pc_world = transform_point_cloud(front_extrinsic, front_point_cloud)
+# wrist_pc_world = 
+# oh_pc_world = 
+
+
+pyvista.plot(
+    front_pc_world,
+    scalars=front_point_cloud[:, 2],
+    render_points_as_spheres=True,
+    point_size=4,
+    show_scalar_bar=False,)
 
 
 # print("Near:", near)
