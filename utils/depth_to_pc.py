@@ -307,6 +307,8 @@ gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
 
 gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
 
-print("Gripper transform is", gripper_transform)
+# print("Gripper transform is", gripper_transform)
 
+# full_pc_gripper = transform_point_cloud(gripper_transform, full_pc_world)
+# visualise_pc(full_pc_gripper)
 
