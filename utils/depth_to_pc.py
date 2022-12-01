@@ -31,7 +31,7 @@ def rgb_depth_to_pc(colour_path, depth_path):
     return points, colours
 
 
-def visualise_pc(points):
+def visualise_pc_old(points):
     
     plotter = pyvista.Plotter()
     plotter.add_points(points, opacity=2, point_size=3, render_points_as_spheres=True)
@@ -154,8 +154,6 @@ def depth_to_pc(obs_config, task_name):
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
-    print("Before shape:", point_cloud.shape)
-
     num_points = point_cloud.shape[0]
     homogeneous_column = np.ones((num_points, 1))
     point_cloud_one_added = np.append(point_cloud, homogeneous_column, axis=1)
@@ -164,6 +162,63 @@ def transform_point_cloud(transform, point_cloud)-> np.ndarray:
     transformed_pc_one_removed = np.transpose(transformed_point_cloud)[:, :3]
 
     return transformed_pc_one_removed
+
+def visualise_pc(point_cloud):
+
+    pyvista.plot(
+        point_cloud,
+        scalars=point_cloud[:, 2],
+        render_points_as_spheres=True,
+        point_size=4,
+        show_scalar_bar=False
+        )
+
+def quaternion_rotation_matrix(quaternion):
+    """
+    Covert a quaternion into a full three-dimensional rotation matrix.
+    Input
+    :param Q: A 4 element array representing the quaternion (q0,q1,q2,q3) 
+
+    Output
+    :return: A 3x3 element matrix representing the full 3D rotation matrix. 
+            This rotation matrix converts a point in the local reference 
+            frame to a point in the global reference frame.
+    """
+    # Extract the values from Q
+    q0 = quaternion[0]
+    q1 = quaternion[1]
+    q2 = quaternion[2]
+    q3 = quaternion[3]
+
+    # First row of the rotation matrix
+    r00 = 2 * (q0 * q0 + q1 * q1) - 1
+    r01 = 2 * (q1 * q2 - q0 * q3)
+    r02 = 2 * (q1 * q3 + q0 * q2)
+    
+    # Second row of the rotation matrix
+    r10 = 2 * (q1 * q2 + q0 * q3)
+    r11 = 2 * (q0 * q0 + q2 * q2) - 1
+    r12 = 2 * (q2 * q3 - q0 * q1)
+    
+    # Third row of the rotation matrix
+    r20 = 2 * (q1 * q3 - q0 * q2)
+    r21 = 2 * (q2 * q3 + q0 * q1)
+    r22 = 2 * (q0 * q0 + q3 * q3) - 1
+    
+    # 3x3 rotation matrix
+    rot_matrix = np.array([[r00, r01, r02],
+                            [r10, r11, r12],
+                            [r20, r21, r22]])
+
+    return rot_matrix
+
+def create_transform(translation, rotation):
+    
+    transform = np.identity(4)    
+    transform[:3, :3] = rotation
+    transform[:3, 3] = translation
+    
+    return transform
 
 PATH = "/home/nasir/Desktop/Demos/reach_target/variation0/episodes/episode0"
 
@@ -220,62 +275,38 @@ overhead_depth = image_to_float_array(_resize_if_needed(Image.open(overhead_img_
 overhead_depth_m = overhead_near + overhead_depth * (overhead_far - overhead_near)
 
 
-left_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(left_shoulder_depth_m, left_shoulder_extrinsic, left_shoulder_intrinsic).reshape(-1,3)
-right_shoulder_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(right_shoulder_depth_m, right_shoulder_extrinsic, right_shoulder_intrinsic).reshape(-1,3)
-front_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(front_depth_m, front_extrinsic, front_intrinsic).reshape(-1,3)
-wrist_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(wrist_depth_m, wrist_extrinsic, wrist_intrinsic).reshape(-1,3)
-overhead_point_cloud = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_depth_m, overhead_extrinsic, overhead_intrinsic).reshape(-1,3)
+ls_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(left_shoulder_depth_m, left_shoulder_extrinsic, left_shoulder_intrinsic).reshape(-1,3)
+rs_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(right_shoulder_depth_m, right_shoulder_extrinsic, right_shoulder_intrinsic).reshape(-1,3)
+front_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(front_depth_m, front_extrinsic, front_intrinsic).reshape(-1,3)
+wrist_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(wrist_depth_m, wrist_extrinsic, wrist_intrinsic).reshape(-1,3)
+oh_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_depth_m, overhead_extrinsic, overhead_intrinsic).reshape(-1,3)
 
+
+# Vision sensor gives point cloud in world frame 
 # Extrinsic = world frame to camera frame
 
+# ls_pc_world = transform_point_cloud(left_shoulder_extrinsic, left_shoulder_point_cloud)
+# rs_pc_world = transform_point_cloud(right_shoulder_extrinsic, right_shoulder_point_cloud)
+# front_pc_world = transform_point_cloud(front_extrinsic, front_point_cloud)
+# wrist_pc_world = transform_point_cloud(wrist_extrinsic, wrist_point_cloud)
+# oh_pc_world = transform_point_cloud(overhead_extrinsic, overhead_point_cloud)
 
-# visualise_pc(left_shoulder_point_cloud)
-# visualise_pc(right_shoulder_point_cloud)
-# visualise_pc(front_point_cloud)
-# print(front_point_cloud.shape)
-# true_pc = front_point_cloud.reshape(-1,3)
-# print(true_pc.shape)
-# pyvista.plot(true_pc)
-# visualise_pc(wrist_point_cloud)
-# visualise_pc(overhead_point_cloud)
+full_pc_world = np.concatenate((ls_pc_world, rs_pc_world, front_pc_world, wrist_pc_world, oh_pc_world))
+# visualise_pc(full_pc_world)
 
-# print(front_point_cloud)
+gripper_pos = obs[0].gripper_pose
+gripper_coord = gripper_pos[:3]
+gripper_rotation_quat = gripper_pos[3:]
 
-# pyvista.plot(
-#     front_point_cloud,
-#     scalars=front_point_cloud[:, 2],
-#     render_points_as_spheres=True,
-#     point_size=4,
-#     show_scalar_bar=False,)
+gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
 
-# ls_pc_world = 
-# rs_pc_world = 
-front_pc_world = transform_point_cloud(front_extrinsic, front_point_cloud)
-# wrist_pc_world = 
-# oh_pc_world = 
+# print("Gripper pose is", grip_pos)
+# print("Gripper coordinates is", grip_coord)
+# print("Gripper rotation quaternion is", grip_rotation_quat)
+# print("Grip matix is", grip_rotation_matrix)
+
+gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
+
+print("Gripper transform is", gripper_transform)
 
 
-pyvista.plot(
-    front_pc_world,
-    scalars=front_point_cloud[:, 2],
-    render_points_as_spheres=True,
-    point_size=4,
-    show_scalar_bar=False,)
-
-
-# print("Near:", near)
-# print("Far: ", far)
-# print("ext:", ext)
-# print("int: ", int)
-# print(len(obs))
-
-# config = get_config([128,128])
-# demos = depth_to_pc(config, "reach_target")
-
-# print(demos[0])
-# print(demos[0].left_shoulder_point_cloud)
-
-# print(obs[10].left_shoulder_point_cloud)
-# print(obs[10].right_shoulder_depth)
-# print(obs[10])
-# print(obs[10])
