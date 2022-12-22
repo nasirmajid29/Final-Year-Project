@@ -37,10 +37,11 @@ def visualise_pc_old(points):
     plotter.add_points(points, opacity=2, point_size=3, render_points_as_spheres=True)
     plotter.show()
 
-def visualise_pc_rgb(points, colours):
+def visualise_pc_rgb(point_cloud):
     
+    points, colours = np.hsplit(point_cloud, 2)
     plotter = pyvista.Plotter()
-    plotter.add_points(points, opacity=1, point_size=1.5, render_points_as_spheres=True, scalars=colours, rgb=True)
+    plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
     plotter.show()
 
 def generate_pc_for_episode(episode_size, episode_path, camera_type):
@@ -138,6 +139,13 @@ def get_config(img_size):
     obs_config.wrist_camera.masks_as_one_channel = False
     obs_config.front_camera.masks_as_one_channel = False
 
+    
+    # obs_config.left_shoulder_camera.point_cloud = True
+    # obs_config.right_shoulder_camera.point_cloud = True
+    # obs_config.overhead_camera.point_cloud = True
+    # obs_config.wrist_camera.point_cloud = True
+    # obs_config.front_camera.point_cloud = True
+
 
     return obs_config
 
@@ -151,6 +159,10 @@ def depth_to_pc(obs_config, task_name):
     #                  from_episode_number: int = 0) -> List[Demo]:
     demos = get_stored_demos(-1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=6)
     return demos
+
+def transform_between_frames(frame1, frame2):
+    inverse = np.linalg.inv(frame1)
+    return np.matmul(inverse, frame2)
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -283,7 +295,7 @@ oh_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_dept
 
 
 # Vision sensor gives point cloud in world frame 
-# Extrinsic = world frame to camera frame
+# Extrinsic - world frame to camera frame
 
 # ls_pc_world = transform_point_cloud(left_shoulder_extrinsic, left_shoulder_point_cloud)
 # rs_pc_world = transform_point_cloud(right_shoulder_extrinsic, right_shoulder_point_cloud)
@@ -294,16 +306,17 @@ oh_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_dept
 full_pc_world = np.concatenate((ls_pc_world, rs_pc_world, front_pc_world, wrist_pc_world, oh_pc_world))
 # visualise_pc(full_pc_world)
 
+# (X,Y,Z,Qx,Qy,Qz,Qw)
 gripper_pos = obs[0].gripper_pose
 gripper_coord = gripper_pos[:3]
 gripper_rotation_quat = gripper_pos[3:]
 
 gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
 
-# print("Gripper pose is", grip_pos)
-# print("Gripper coordinates is", grip_coord)
-# print("Gripper rotation quaternion is", grip_rotation_quat)
-# print("Grip matix is", grip_rotation_matrix)
+# print("Gripper pose is", gripper_pos)
+# print("Gripper coordinates is", gripper_coord)
+# print("Gripper rotation quaternion is", gripper_rotation_quat)
+# print("Grip matix is", gripper_rotation_matrix)
 
 gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
 
@@ -312,3 +325,70 @@ gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
 # full_pc_gripper = transform_point_cloud(gripper_transform, full_pc_world)
 # visualise_pc(full_pc_gripper)
 
+
+all_gripper_frames = []
+for i in range(len(obs)):
+
+    gripper_pos = obs[i].gripper_pose
+    gripper_coord = gripper_pos[:3]
+    gripper_rotation_quat = gripper_pos[3:]
+    gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
+
+    # print("Gripper pose is", gripper_pos)
+    # print("Gripper coordinates is", gripper_coord)
+    # print("Gripper rotation quaternion is", gripper_rotation_quat)
+    # print("Grip matix is", gripper_rotation_matrix)
+
+    gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+
+    all_gripper_frames.append(gripper_frame)
+
+all_actions = []
+
+for index, frame in enumerate(all_gripper_frames):
+
+    if index == len(all_gripper_frames)-1:
+        continue
+
+    next_frame = all_gripper_frames[index+1]
+    action = transform_between_frames(frame, next_frame)
+    all_actions.append(action)
+
+
+# print("Action size is:", np.array(all_actions).shape)
+
+# [transform_between_frames(all_gripper_transforms[i], all) for i in range(len(test_list))]
+    # print("Gripper transform is", gripper_transform)
+
+
+# print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
+
+
+config = get_config([128,128])
+
+demos = depth_to_pc(config, "reach_target")
+
+ls_pc_world = demos[0]._observations[0].left_shoulder_point_cloud
+rs_pc_world = demos[0]._observations[0].right_shoulder_point_cloud
+front_pc_world = demos[0]._observations[0].front_point_cloud
+wrist_pc_world = demos[0]._observations[0].wrist_point_cloud
+oh_pc_world = demos[0]._observations[0].overhead_point_cloud
+
+ls_rgb = demos[0]._observations[0].left_shoulder_rgb
+rs_rgb = demos[0]._observations[0].right_shoulder_rgb
+front_rgb = demos[0]._observations[0].front_rgb
+wrist_rgb = demos[0]._observations[0].wrist_rgb
+oh_rgb = demos[0]._observations[0].overhead_rgb
+
+ls_colour_pc_world = np.concatenate((ls_pc_world, ls_rgb), axis=2).reshape(-1,6)
+rs_colour_pc_world = np.concatenate((rs_pc_world, rs_rgb), axis=2).reshape(-1,6)
+front_colour_pc_world = np.concatenate((front_pc_world, front_rgb), axis=2).reshape(-1,6)
+wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
+oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
+
+full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
+
+visualise_pc_rgb(full_colour_pc_world)
+
+
+#pyvista polydata
