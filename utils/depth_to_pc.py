@@ -10,6 +10,8 @@ from rlbench.utils import get_stored_demos, ObservationConfig, _resize_if_needed
 from rlbench.backend.utils import image_to_float_array, rgb_handles_to_mask
 from pyrep.objects import VisionSensor
 
+from  utils.visualise import visualise_pc, visualise_pc_rgb
+
 def rgb_depth_to_pc(colour_path, depth_path):
     depth = o3d.io.read_image(depth_path)
     colour = o3d.io.read_image(colour_path)
@@ -31,18 +33,6 @@ def rgb_depth_to_pc(colour_path, depth_path):
     return points, colours
 
 
-def visualise_pc_old(points):
-    
-    plotter = pyvista.Plotter()
-    plotter.add_points(points, opacity=2, point_size=3, render_points_as_spheres=True)
-    plotter.show()
-
-def visualise_pc_rgb(point_cloud):
-    
-    points, colours = np.hsplit(point_cloud, 2)
-    plotter = pyvista.Plotter()
-    plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
-    plotter.show()
 
 def generate_pc_for_episode(episode_size, episode_path, camera_type):
 
@@ -175,15 +165,7 @@ def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
     return transformed_pc_one_removed
 
-def visualise_pc(point_cloud):
 
-    pyvista.plot(
-        point_cloud,
-        scalars=point_cloud[:, 2],
-        render_points_as_spheres=True,
-        point_size=4,
-        show_scalar_bar=False
-        )
 
 def quaternion_rotation_matrix(quaternion):
     """
@@ -232,127 +214,64 @@ def create_transform(translation, rotation):
     
     return transform
 
-PATH = "/home/nasir/Desktop/Demos/reach_target/variation0/episodes/episode0"
+# PATH = "/home/nasir/Desktop/Demos/reach_target/variation0/episodes/episode0"
 
-with open(os.path.join(PATH, "low_dim_obs.pkl"), 'rb') as f:
-    obs = pickle.load(f)
-
-IMAGE_SIZE = [128, 128]
-DEPTH_SCALE = 2**24 - 1
-configuration = get_config(IMAGE_SIZE)
-
-left_img_path = os.path.join(PATH, "left_shoulder_depth/0.png")
-left_shoulder_extrinsic = obs[0].misc['left_shoulder_camera_extrinsics']
-left_shoulder_intrinsic = obs[0].misc['left_shoulder_camera_intrinsics']
-left_shoulder_near = obs[0].misc['left_shoulder_camera_near']
-left_shoulder_far = obs[0].misc['left_shoulder_camera_far']
-
-right_img_path = os.path.join(PATH, "right_shoulder_depth/0.png")
-right_shoulder_extrinsic = obs[0].misc['right_shoulder_camera_extrinsics']
-right_shoulder_intrinsic = obs[0].misc['right_shoulder_camera_intrinsics']
-right_shoulder_near = obs[0].misc['right_shoulder_camera_near']
-right_shoulder_far = obs[0].misc['right_shoulder_camera_far']
-
-front_img_path = os.path.join(PATH, "front_depth/0.png")
-front_extrinsic = obs[0].misc['front_camera_extrinsics']
-front_intrinsic = obs[0].misc['front_camera_intrinsics']
-front_near = obs[0].misc['front_camera_near']
-front_far = obs[0].misc['front_camera_far']
-
-wrist_img_path = os.path.join(PATH, "wrist_depth/0.png")
-wrist_extrinsic = obs[0].misc['wrist_camera_extrinsics']
-wrist_intrinsic = obs[0].misc['wrist_camera_intrinsics']
-wrist_near = obs[0].misc['wrist_camera_near']
-wrist_far = obs[0].misc['wrist_camera_far']
-
-overhead_img_path = os.path.join(PATH, "overhead_depth/0.png")
-overhead_extrinsic = obs[0].misc['overhead_camera_extrinsics']
-overhead_intrinsic = obs[0].misc['overhead_camera_intrinsics']
-overhead_near = obs[0].misc['overhead_camera_near']
-overhead_far = obs[0].misc['overhead_camera_far']
-
-left_shoulder_depth = image_to_float_array(_resize_if_needed(Image.open(left_img_path), configuration.left_shoulder_camera.image_size), DEPTH_SCALE)
-left_shoulder_depth_m = left_shoulder_near + left_shoulder_depth * (left_shoulder_far - left_shoulder_near)
-
-right_shoulder_depth = image_to_float_array(_resize_if_needed(Image.open(right_img_path), configuration.right_shoulder_camera.image_size), DEPTH_SCALE)
-right_shoulder_depth_m = right_shoulder_near + right_shoulder_depth * (right_shoulder_far - right_shoulder_near)
-
-front_depth = image_to_float_array(_resize_if_needed(Image.open(front_img_path), configuration.front_camera.image_size), DEPTH_SCALE)
-front_depth_m = front_near + front_depth * (front_far - front_near)
-
-wrist_depth = image_to_float_array(_resize_if_needed(Image.open(wrist_img_path), configuration.wrist_camera.image_size), DEPTH_SCALE)
-wrist_depth_m = wrist_near + wrist_depth * (wrist_far - wrist_near)
-
-overhead_depth = image_to_float_array(_resize_if_needed(Image.open(overhead_img_path), configuration.overhead_camera.image_size), DEPTH_SCALE)
-overhead_depth_m = overhead_near + overhead_depth * (overhead_far - overhead_near)
+# with open(os.path.join(PATH, "low_dim_obs.pkl"), 'rb') as f:
+#     obs = pickle.load(f)
 
 
-ls_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(left_shoulder_depth_m, left_shoulder_extrinsic, left_shoulder_intrinsic).reshape(-1,3)
-rs_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(right_shoulder_depth_m, right_shoulder_extrinsic, right_shoulder_intrinsic).reshape(-1,3)
-front_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(front_depth_m, front_extrinsic, front_intrinsic).reshape(-1,3)
-wrist_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(wrist_depth_m, wrist_extrinsic, wrist_intrinsic).reshape(-1,3)
-oh_pc_world = VisionSensor.pointcloud_from_depth_and_camera_params(overhead_depth_m, overhead_extrinsic, overhead_intrinsic).reshape(-1,3)
+# # Vision sensor gives point cloud in world frame 
+# # Extrinsic - world frame to camera frame
 
-
-# Vision sensor gives point cloud in world frame 
-# Extrinsic - world frame to camera frame
-
-# ls_pc_world = transform_point_cloud(left_shoulder_extrinsic, left_shoulder_point_cloud)
-# rs_pc_world = transform_point_cloud(right_shoulder_extrinsic, right_shoulder_point_cloud)
-# front_pc_world = transform_point_cloud(front_extrinsic, front_point_cloud)
-# wrist_pc_world = transform_point_cloud(wrist_extrinsic, wrist_point_cloud)
-# oh_pc_world = transform_point_cloud(overhead_extrinsic, overhead_point_cloud)
-
-full_pc_world = np.concatenate((ls_pc_world, rs_pc_world, front_pc_world, wrist_pc_world, oh_pc_world))
 # visualise_pc(full_pc_world)
 
-# (X,Y,Z,Qx,Qy,Qz,Qw)
-gripper_pos = obs[0].gripper_pose
-gripper_coord = gripper_pos[:3]
-gripper_rotation_quat = gripper_pos[3:]
+# # (X,Y,Z,Qx,Qy,Qz,Qw)
+# gripper_pos = obs[0].gripper_pose
+# gripper_coord = gripper_pos[:3]
+# gripper_rotation_quat = gripper_pos[3:]
 
-gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
+# gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
 
-# print("Gripper pose is", gripper_pos)
-# print("Gripper coordinates is", gripper_coord)
-# print("Gripper rotation quaternion is", gripper_rotation_quat)
-# print("Grip matix is", gripper_rotation_matrix)
+# # print("Gripper pose is", gripper_pos)
+# # print("Gripper coordinates is", gripper_coord)
+# # print("Gripper rotation quaternion is", gripper_rotation_quat)
+# # print("Grip matix is", gripper_rotation_matrix)
 
-gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
+# gripper_transform = create_transform(gripper_coord, gripper_rotation_matrix)
 
-# print("Gripper transform is", gripper_transform)
+# # print("Gripper transform is", gripper_transform)
 
-# full_pc_gripper = transform_point_cloud(gripper_transform, full_pc_world)
-# visualise_pc(full_pc_gripper)
+# # full_pc_gripper = transform_point_cloud(gripper_transform, full_pc_world)
+# # visualise_pc(full_pc_gripper)
 
 
-all_gripper_frames = []
-for i in range(len(obs)):
+# all_gripper_frames = []
+# for i in range(len(obs)):
 
-    gripper_pos = obs[i].gripper_pose
-    gripper_coord = gripper_pos[:3]
-    gripper_rotation_quat = gripper_pos[3:]
-    gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
+#     gripper_pos = obs[i].gripper_pose
+#     gripper_coord = gripper_pos[:3]
+#     gripper_rotation_quat = gripper_pos[3:]
+#     gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
 
-    # print("Gripper pose is", gripper_pos)
-    # print("Gripper coordinates is", gripper_coord)
-    # print("Gripper rotation quaternion is", gripper_rotation_quat)
-    # print("Grip matix is", gripper_rotation_matrix)
+#     # print("Gripper pose is", gripper_pos)
+#     # print("Gripper coordinates is", gripper_coord)
+#     # print("Gripper rotation quaternion is", gripper_rotation_quat)
+#     # print("Grip matix is", gripper_rotation_matrix)
 
-    gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+#     gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
 
-    all_gripper_frames.append(gripper_frame)
+#     all_gripper_frames.append(gripper_frame)
 
-all_actions = []
+# all_actions = []
 
-for index, frame in enumerate(all_gripper_frames):
+# for index, frame in enumerate(all_gripper_frames):
 
-    if index == len(all_gripper_frames)-1:
-        continue
+#     if index == len(all_gripper_frames)-1:
+#         continue
 
-    next_frame = all_gripper_frames[index+1]
-    action = transform_between_frames(frame, next_frame)
-    all_actions.append(action)
+#     next_frame = all_gripper_frames[index+1]
+#     action = transform_between_frames(frame, next_frame)
+#     all_actions.append(action)
 
 
 # print("Action size is:", np.array(all_actions).shape)
@@ -365,30 +284,79 @@ for index, frame in enumerate(all_gripper_frames):
 
 
 config = get_config([128,128])
-
 demos = depth_to_pc(config, "reach_target")
 
-ls_pc_world = demos[0]._observations[0].left_shoulder_point_cloud
-rs_pc_world = demos[0]._observations[0].right_shoulder_point_cloud
-front_pc_world = demos[0]._observations[0].front_point_cloud
-wrist_pc_world = demos[0]._observations[0].wrist_point_cloud
-oh_pc_world = demos[0]._observations[0].overhead_point_cloud
+dataset = []
 
-ls_rgb = demos[0]._observations[0].left_shoulder_rgb
-rs_rgb = demos[0]._observations[0].right_shoulder_rgb
-front_rgb = demos[0]._observations[0].front_rgb
-wrist_rgb = demos[0]._observations[0].wrist_rgb
-oh_rgb = demos[0]._observations[0].overhead_rgb
+for i in range(len(demos)):
 
-ls_colour_pc_world = np.concatenate((ls_pc_world, ls_rgb), axis=2).reshape(-1,6)
-rs_colour_pc_world = np.concatenate((rs_pc_world, rs_rgb), axis=2).reshape(-1,6)
-front_colour_pc_world = np.concatenate((front_pc_world, front_rgb), axis=2).reshape(-1,6)
-wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
-oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
+    ls_pc_world = demos[i]._observations[0].left_shoulder_point_cloud
+    rs_pc_world = demos[i]._observations[0].right_shoulder_point_cloud
+    front_pc_world = demos[i]._observations[0].front_point_cloud
+    wrist_pc_world = demos[i]._observations[0].wrist_point_cloud
+    oh_pc_world = demos[i]._observations[0].overhead_point_cloud
 
-full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
+    ls_rgb = demos[i]._observations[0].left_shoulder_rgb
+    rs_rgb = demos[i]._observations[0].right_shoulder_rgb
+    front_rgb = demos[i]._observations[0].front_rgb
+    wrist_rgb = demos[i]._observations[0].wrist_rgb
+    oh_rgb = demos[i]._observations[0].overhead_rgb
 
-visualise_pc_rgb(full_colour_pc_world)
+    ls_colour_pc_world = np.concatenate((ls_pc_world, ls_rgb), axis=2).reshape(-1,6)
+    rs_colour_pc_world = np.concatenate((rs_pc_world, rs_rgb), axis=2).reshape(-1,6)
+    front_colour_pc_world = np.concatenate((front_pc_world, front_rgb), axis=2).reshape(-1,6)
+    wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
+    oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
 
+    full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
+
+    full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
+
+    # visualise_pc_rgb(full_colour_pc_world)
+
+
+    all_gripper_frames = []
+    all_gripper_pc = []
+    for j in range(len(demos[i]._observations)):
+
+        gripper_pos = demos[i]._observations[j].gripper_pose
+        gripper_coord = gripper_pos[:3]
+        gripper_rotation_quat = gripper_pos[3:]
+        gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
+        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+
+        full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
+        full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
+        full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
+
+
+        all_gripper_frames.append(gripper_frame)
+        all_gripper_pc.append(full_colour_pc_gripper)
+
+    all_actions = []
+
+    for index, frame in enumerate(all_gripper_frames):
+
+        if index == len(all_gripper_frames)-1:
+            continue
+
+        next_frame = all_gripper_frames[index+1]
+        action = transform_between_frames(frame, next_frame)
+        all_actions.append(action)
+
+    all_actions.append(np.zeros((4,4)))
+
+# print("Action size is:", np.array(all_actions).shape)
+# print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
+
+    pc_with_actions = list(zip(all_gripper_pc, all_actions))
+    dataset.append(pc_with_actions)
+
+# print(len(dataset))
+
+
+# pc, ac = pc_with_actions[0]
+# print(np.array(pc).shape)
+# print(np.array(ac).shape)  
 
 #pyvista polydata
