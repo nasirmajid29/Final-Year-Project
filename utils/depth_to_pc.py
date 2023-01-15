@@ -10,7 +10,7 @@ from rlbench.utils import get_stored_demos, ObservationConfig, _resize_if_needed
 from rlbench.backend.utils import image_to_float_array, rgb_handles_to_mask
 from pyrep.objects import VisionSensor
 
-from  utils.visualise import visualise_pc, visualise_pc_rgb
+from visualise import visualise_pc, visualise_pc_rgb
 
 def rgb_depth_to_pc(colour_path, depth_path):
     depth = o3d.io.read_image(depth_path)
@@ -286,15 +286,51 @@ def create_transform(translation, rotation):
 config = get_config([128,128])
 demos = depth_to_pc(config, "reach_target")
 
+mask = True
+
 dataset = []
 
 for i in range(len(demos)):
+
+    ls_mask = demos[i]._observations[0].left_shoulder_mask
+    rs_mask = demos[i]._observations[0].right_shoulder_mask
+    front_mask = demos[i]._observations[0].front_mask
+    wrist_mask = demos[i]._observations[0].wrist_mask
+    oh_mask = demos[i]._observations[0].overhead_mask
+
+    # print(front_mask)
+
+    ls_mask = np.array(ls_mask).reshape(-1)
+    rs_mask = np.array(rs_mask).reshape(-1)
+    front_mask = np.array(front_mask).reshape(-1)
+    wrist_mask = np.array(wrist_mask).reshape(-1)
+    oh_mask = np.array(oh_mask).reshape(-1)
+
+    if i == 0:
+        print("ls", np.unique(ls_mask))
+        print("rs", np.unique(rs_mask))
+        print("front", np.unique(front_mask))
+        print("wrist", np.unique(wrist_mask))
+        print("oh", np.unique(oh_mask))
+
+    # print("Wrist mask is,", wrist_mask)
+    # print("dims is:", np.array(wrist_mask).shape) 
 
     ls_pc_world = demos[i]._observations[0].left_shoulder_point_cloud
     rs_pc_world = demos[i]._observations[0].right_shoulder_point_cloud
     front_pc_world = demos[i]._observations[0].front_point_cloud
     wrist_pc_world = demos[i]._observations[0].wrist_point_cloud
     oh_pc_world = demos[i]._observations[0].overhead_point_cloud
+
+    # print("Wrist pc world is,", wrist_pc_world)
+    # test = (wrist_mask == 225)[..., None] * np.array(wrist_pc_world)
+    # test2 = wrist_pc_world[wrist_mask == 225]
+    # print("Test dims,", np.array(test2).shape)
+    # print((wrist_mask == 225) * wrist_pc_world)
+    # print(wrist_pc_world[wrist_mask == 225])
+
+    #resize and then bool index
+
 
     ls_rgb = demos[i]._observations[0].left_shoulder_rgb
     rs_rgb = demos[i]._observations[0].right_shoulder_rgb
@@ -308,11 +344,23 @@ for i in range(len(demos)):
     wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
     oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
 
+    # mask = False
+    # 165 low limit
+    maskNum = 213
+    if mask:
+        ls_colour_pc_world = ls_colour_pc_world[ls_mask < maskNum]
+        rs_colour_pc_world = rs_colour_pc_world[rs_mask < maskNum]
+        front_colour_pc_world = front_colour_pc_world[np.logical_and(front_mask < maskNum,front_mask > 165)]
+        wrist_colour_pc_world = wrist_colour_pc_world[wrist_mask < maskNum]
+        oh_colour_pc_world = oh_colour_pc_world[oh_mask < maskNum]
+        # visualise_pc_rgb(wrist_colour_pc_world)
+
     full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
 
     full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
 
-    # visualise_pc_rgb(full_colour_pc_world)
+    if i == 0:
+        visualise_pc_rgb(full_colour_pc_world)
 
 
     all_gripper_frames = []
