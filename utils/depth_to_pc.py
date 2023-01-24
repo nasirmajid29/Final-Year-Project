@@ -286,8 +286,6 @@ def create_transform(translation, rotation):
 config = get_config([128,128])
 demos = depth_to_pc(config, "reach_target")
 
-mask = True
-
 dataset = []
 
 for i in range(len(demos)):
@@ -344,22 +342,29 @@ for i in range(len(demos)):
     wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
     oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
 
-    # mask = False
+    mask_robot = True
     # 165 low limit
     maskNum = 213
-    if mask:
+    if mask_robot:
         ls_colour_pc_world = ls_colour_pc_world[ls_mask < maskNum]
         rs_colour_pc_world = rs_colour_pc_world[rs_mask < maskNum]
-        front_colour_pc_world = front_colour_pc_world[np.logical_and(front_mask < maskNum,front_mask > 165)]
+        front_colour_pc_world = front_colour_pc_world[np.logical_and(front_mask < 210, front_mask > 165)]
         wrist_colour_pc_world = wrist_colour_pc_world[wrist_mask < maskNum]
         oh_colour_pc_world = oh_colour_pc_world[oh_mask < maskNum]
-        # visualise_pc_rgb(wrist_colour_pc_world)
+        
 
     full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
 
     full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
 
-    if i == 0:
+    red_ball_only = False
+    if red_ball_only:
+
+        full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
+        # print(np.unique(full_colour_pc_world[:,3]))
+
+    if i == 1:
+        # visualise_pc_rgb(oh_colour_pc_world)
         visualise_pc_rgb(full_colour_pc_world)
 
 
