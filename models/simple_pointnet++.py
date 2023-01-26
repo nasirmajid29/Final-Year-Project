@@ -49,7 +49,7 @@ class Net(torch.nn.Module):
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
 
-        self.mlp = MLP([1024, 512, 256, 10], dropout=0.5, norm=None)
+        self.mlp = MLP([1024, 512, 256, 10, 3], dropout=0.5, norm=None)
 
     def forward(self, data):
         sa0_out = (data.x, data.pos, data.batch)
@@ -88,7 +88,8 @@ if __name__ == '__main__':
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
                     'data/ModelNet10')
 
-    loaded_data  = torch.load("examples.pt")
+    # loaded_data  = torch.load("examples.pt")
+    
     
     pre_transform, transform = T.NormalizeScale(), T.SamplePoints(1024)
     train_dataset = ModelNet(path, '10', True, transform, pre_transform)
