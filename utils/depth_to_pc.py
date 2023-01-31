@@ -2,7 +2,8 @@ import os
 import pickle
 import open3d as o3d
 import numpy as np
-import pyvista
+
+import torch
 
 from PIL import Image
 
@@ -286,10 +287,11 @@ def create_transform(translation, rotation):
 config = get_config([128,128])
 demos = depth_to_pc(config, "reach_target")
 
-dataset = []
+full_dataset = np.empty((1,2))
 
 for i in range(len(demos)):
 
+    dataset = []
     ls_mask = demos[i]._observations[0].left_shoulder_mask
     rs_mask = demos[i]._observations[0].right_shoulder_mask
     front_mask = demos[i]._observations[0].front_mask
@@ -357,7 +359,7 @@ for i in range(len(demos)):
 
     full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
 
-    red_ball_only = False
+    red_ball_only = True
     if red_ball_only:
 
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
@@ -403,7 +405,16 @@ for i in range(len(demos)):
 # print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
 
     pc_with_actions = list(zip(all_gripper_pc, all_actions))
-    dataset.append(pc_with_actions)
+    dataset = pc_with_actions
+    # print(np.array(dataset).shape)
+    # full_dataset.append(dataset)
+
+    full_dataset = np.append(full_dataset, dataset, axis=0)
+
+
+# print(np.array(full_dataset).shape)
+torch.save(full_dataset, 'example.pt')
+
 
 # print(len(dataset))
 
