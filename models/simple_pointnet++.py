@@ -8,6 +8,9 @@ from torch_geometric.datasets import ModelNet
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import MLP, PointConv, fps, global_max_pool, radius
 
+from GPUtil import showUtilization as gpu_usage
+import matplotlib.pyplot as plt
+
 
 class SAModule(torch.nn.Module):
     def __init__(self, ratio, r, nn):
@@ -49,7 +52,7 @@ class Net(torch.nn.Module):
         self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
 
-        self.mlp = MLP([1024, 512, 256, 10, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([1024, 512, 256, 10], dropout=0.5, norm=None)
 
     def forward(self, data):
         sa0_out = (data.x, data.pos, data.batch)
@@ -68,6 +71,7 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         loss = F.nll_loss(model(data), data.y)
+        # print(f'Loss: {loss:.4f}')
         loss.backward()
         optimizer.step()
 
@@ -81,10 +85,17 @@ def test(loader):
         with torch.no_grad():
             pred = model(data).max(1)[1]
         correct += pred.eq(data.y).sum().item()
-    return correct / len(loader.dataset)
+    return correct / len(loader.dataset), F.nll_loss(model(data), data.y)
+        
 
 
 if __name__ == '__main__':
+
+    gpu_usage()
+    torch.cuda.empty_cache()
+    gpu_usage()
+    
+
     path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
                     'data/ModelNet10')
 
@@ -94,6 +105,10 @@ if __name__ == '__main__':
     pre_transform, transform = T.NormalizeScale(), T.SamplePoints(1024)
     train_dataset = ModelNet(path, '10', True, transform, pre_transform)
     test_dataset = ModelNet(path, '10', False, transform, pre_transform)
+
+    #train data
+    #testdata
+
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True,
                               num_workers=6)
     test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False,
@@ -101,9 +116,30 @@ if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
+
+    # test_acc, loss = test(test_loader)
+    # print(f'Test: {test_acc:.4f}, Loss: {loss:.4f}')
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    for epoch in range(1, 201):
+    torch.cuda.empty_cache()
+
+    epoch_losses = []
+    accuracies = []
+    for epoch in range(1, 5): #201
         train(epoch)
-        test_acc = test(test_loader)
+        test_acc, loss = test(test_loader)
+        print(loss)
+        loss = loss.detach().cpu().numpy()
+        epoch_losses.append(loss)
+        accuracies.append(test_acc)
         print(f'Epoch: {epoch:03d}, Test: {test_acc:.4f}')
+        print(loss)
+
+    plt.plot(accuracies, label = 'accuracy')
+    plt.plot(epoch_losses, label = 'loss')
+    plt.legend(loc='upper left')
+    plt.savefig("pointnet++.png")
+    plt.show()
+
+    torch.save(model, "pointnet++.pt")
