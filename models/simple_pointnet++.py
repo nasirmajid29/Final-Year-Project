@@ -10,6 +10,7 @@ from torch_geometric.nn import MLP, PointConv, fps, global_max_pool, radius
 
 from GPUtil import showUtilization as gpu_usage
 import matplotlib.pyplot as plt
+from point_dataset import PointDataset
 
 
 class SAModule(torch.nn.Module):
@@ -71,7 +72,7 @@ def train(epoch):
         data = data.to(device)
         optimizer.zero_grad()
         loss = F.nll_loss(model(data), data.y)
-        # print(f'Loss: {loss:.4f}')
+        print(f'Loss: {loss:.4f}')
         loss.backward()
         optimizer.step()
 
@@ -96,23 +97,25 @@ if __name__ == '__main__':
     gpu_usage()
     
 
-    path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
-                    'data/ModelNet10')
+    # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
+    #                 'data/ModelNet10')
 
-    # loaded_data  = torch.load("examples.pt")
+    pre_transform = T.NormalizeScale()
+    # transform = T.SamplePoints(64)
+    
+    point_cloud_data_train = PointDataset("data/example", "example.pt", True, pre_transform)
     
     
-    pre_transform, transform = T.NormalizeScale(), T.SamplePoints(1024)
-    train_dataset = ModelNet(path, '10', True, transform, pre_transform)
-    test_dataset = ModelNet(path, '10', False, transform, pre_transform)
+    # train_dataset = ModelNet(path, '10', True, transform, pre_transform)
+    # test_dataset = ModelNet(path, '10', False, transform, pre_transform)
 
-    #train data
-    #testdata
+    # train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True,
+    #                           num_workers=6)
+    # test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False,
+    #                          num_workers=6)
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True,
-                              num_workers=6)
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False,
-                             num_workers=6)
+
+    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=True, num_workers=6)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
@@ -128,18 +131,18 @@ if __name__ == '__main__':
     accuracies = []
     for epoch in range(1, 5): #201
         train(epoch)
-        test_acc, loss = test(test_loader)
-        print(loss)
-        loss = loss.detach().cpu().numpy()
-        epoch_losses.append(loss)
-        accuracies.append(test_acc)
-        print(f'Epoch: {epoch:03d}, Test: {test_acc:.4f}')
-        print(loss)
+        # test_acc, loss = test(test_loader)
+        # print(loss)
+        # loss = loss.detach().cpu().numpy()
+        # epoch_losses.append(loss)
+        # accuracies.append(test_acc)
+        print(f'Epoch: {epoch:03d}')#, Test: {test_acc:.4f}')
+        # print(loss)
 
-    plt.plot(accuracies, label = 'accuracy')
-    plt.plot(epoch_losses, label = 'loss')
-    plt.legend(loc='upper left')
-    plt.savefig("pointnet++.png")
-    plt.show()
+    # plt.plot(accuracies, label = 'accuracy')
+    # plt.plot(epoch_losses, label = 'loss')
+    # plt.legend(loc='upper left')
+    # plt.savefig("pointnet++.png")
+    # plt.show()
 
-    torch.save(model, "pointnet++.pt")
+    # torch.save(model, "pointnet++.pt")
