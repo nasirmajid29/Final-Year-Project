@@ -287,7 +287,7 @@ def create_transform(translation, rotation):
 config = get_config([128,128])
 demos = depth_to_pc(config, "reach_target")
 
-full_dataset = np.empty((1,2))
+full_dataset = np.empty((1,2), dtype=object)
 
 for i in range(len(demos)):
 
@@ -405,14 +405,20 @@ for i in range(len(demos)):
 # print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
 
     pc_with_actions = list(zip(all_gripper_pc, all_actions))
-    dataset = pc_with_actions
-    # print(np.array(dataset).shape)
+    dataset = np.array(pc_with_actions, dtype=object)
+
+    # print(np.array(dataset, dtype=object).shape)
+    # print(np.array(dataset)[0])
     # full_dataset.append(dataset)
 
     full_dataset = np.append(full_dataset, dataset, axis=0)
+    full_dataset = full_dataset[1:]
 
 
-# print(np.array(full_dataset).shape)
+
+# print(np.array(full_dataset)[0].shape)
+# print(np.array(full_dataset)[1])
+
 torch.save(full_dataset, 'example.pt')
 
 
