@@ -1,7 +1,7 @@
 import glob
 import os
 import torch
-# from torch.utils.data import random_split
+from torch.utils.data import random_split
 import numpy as np
 
 
@@ -108,8 +108,6 @@ class PointDataset(Dataset):
             self.data = torch.load(f"{root}/raw/{filename}")
             super(PointDataset, self).__init__(root, transform, pre_transform)
 
-
-            
             
       @property
       def raw_file_names(self):
@@ -129,11 +127,17 @@ class PointDataset(Dataset):
             data_list = []
 
             for state_action_pair in self.data:
-                  point_cloud, action = torch.tensor(state_action_pair[0]), torch.tensor(state_action_pair[1])
+                  point_cloud, action = torch.tensor(state_action_pair[0], dtype=torch.float32), torch.tensor(state_action_pair[1], dtype=torch.float32)
 
+                  action = action[:3, 3].view(1,3)
+                  # print(action.size())
+                  
                   data = Data(x = point_cloud, y = action)
                   data.pos = point_cloud[:, :3]
-                  # data.face
+
+                  # print(data.x.size())
+                  # print(data.y.size())
+                  # print(data.pos.size())
 
                   data_list.append(data)
 
@@ -143,16 +147,16 @@ class PointDataset(Dataset):
             if self.transform is not None:
                   data_list = [self.transform(d) for d in data_list] 
 
-            # data, slices = self.collate(data_list)
-            # torch.save((data, slices), self.processed_paths[0])
+        
+            train_data, test_data = random_split(data_list, [0.8, 0.2])
 
-            if self.train:
-                  torch.save(data_list, f'{self.root}/processed/data_train.pt')
+            # if self.train:
+            torch.save(data_list, f'{self.root}/processed/data_train.pt')
                   
-            else:
-                  torch.save(data_list, f'{self.root}/processed/data_test.pt')
+            # else:
+            torch.save(data_list, f'{self.root}/processed/data_test.pt')
 
-            return data_list
+            return train_data, test_data #data_list
 
       # def _get_labels(self, label):
       #       label = np.asarray([label])
