@@ -102,12 +102,13 @@ class Net(torch.nn.Module):
 
         # print(x.dtype)
 
-        return self.mlp(x).log_softmax(dim=-1)
+        return self.mlp(x)#.log_softmax(dim=-1)
 
 
 def train(epoch):
     model.train()
-    losses = []
+    total_loss = 0
+    
     for data in train_loader:
 
 
@@ -116,11 +117,22 @@ def train(epoch):
 
         pred =  model(data)
         # print(pred, data.y)
-        loss = F.smooth_l1_loss(pred, data.y) #F.mse_loss(pred, data.y) 
+        loss = F.mse_loss(pred, data.y) 
+        # F.smooth_l1_loss(pred, data.y)
+
+        total_loss += loss
+
         
         loss.backward()
         optimizer.step()
+        break
 
+
+    avg_loss = total_loss / len(train_loader)
+    print(f'Epoch: {epoch:03d}, Average Training Loss: {avg_loss:.4f}')
+
+    wandb.log({"training loss": avg_loss})
+    wandb.watch(model)
         
 
 def test(loader):
@@ -185,9 +197,9 @@ if __name__ == '__main__':
         loss = loss.detach().cpu().numpy()
         epoch_losses.append(loss)
         # accuracies.append(test_acc)
-        print(f'Epoch: {epoch:03d}, Loss: {loss:.4f}')
+        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}')
 
-        wandb.log({"loss": loss})
+        wandb.log({"validation loss": loss})
         wandb.watch(model)
 
         # print(loss)
