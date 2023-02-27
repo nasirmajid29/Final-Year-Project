@@ -14,17 +14,33 @@ from point_dataset import PointDataset
 import numpy as np
 
 import wandb
+import pyvista
 
 wandb.init(project="test-project", entity="final-year-project")
 
 wandb.config.update({
   "learning_rate": 0.001,
   "optimiser": "Adam",
-  "epochs": 10,
+  "epochs": 30,
   "batch_size": 32,
-  "ratio": [0.5, 0.25],
-  "radius": [0.2, 0.4]
+  "ratio": [0.25, 0.125],
+  "radius": [0.1, 0.2]
 })
+
+def visualise_pc_radius(point_cloud, indices, radius):
+    
+    points, colours = np.hsplit(point_cloud, 2)
+    highlighted = points[indices]
+    black = np.full((len(highlighted), 3), 0)
+    plotter = pyvista.Plotter()
+    plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+    plotter.add_points(highlighted, opacity=1, point_size=5, render_points_as_spheres=True, scalars=black.astype(int), rgb=True)
+
+    for point in highlighted:
+        sphere = pyvista.Sphere(radius, point)
+        plotter.add_sphere_widget(sphere)
+    plotter.show()
+
 
 class SAModule(torch.nn.Module):
     def __init__(self, ratio, r, nn):
@@ -35,6 +51,7 @@ class SAModule(torch.nn.Module):
 
     def forward(self, x, pos, batch):
         idx = fps(pos, batch, ratio=self.ratio)
+        # visualise_pc_radius(x.detach().numpy(), idx.detach().numpy(), self.r)
         row, col = radius(pos, pos[idx], self.r, batch, batch[idx],
                           max_num_neighbors=64)
         edge_index = torch.stack([col, row], dim=0)
@@ -68,15 +85,16 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.5, 0.2, MLP([9, 64, 64, 128]))
-        self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
-        self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
+        self.sa1_module = SAModule(0.25, 0.1, MLP([9, 32, 64]))
+        self.sa2_module = SAModule(0.125, 0.2, MLP([64 + 3, 128, 256]))
+        self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
-        self.mlp = MLP([1024, 512, 256, 10, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
         sa0_out = (data.x, data.pos, data.batch)
+        # print(np.array(data.batch).shape)
         sa1_out = self.sa1_module(*sa0_out)
         sa2_out = self.sa2_module(*sa1_out)
         sa3_out = self.sa3_module(*sa2_out)
@@ -97,7 +115,8 @@ def train(epoch):
         optimizer.zero_grad()
 
         pred =  model(data)
-        loss = F.mse_loss(pred, data.y) 
+        # print(pred, data.y)
+        loss = F.smooth_l1_loss(pred, data.y) #F.mse_loss(pred, data.y) 
         
         loss.backward()
         optimizer.step()
@@ -154,13 +173,13 @@ if __name__ == '__main__':
     # test_acc, loss = test(test_loader)
     # print(f'Test: {test_acc:.4f}, Loss: {loss:.4f}')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001) #0.001
 
     torch.cuda.empty_cache()
 
     epoch_losses = []
     accuracies = []
-    for epoch in range(10): #201
+    for epoch in range(30): #201
         train(epoch)
         loss = test(test_loader)
         loss = loss.detach().cpu().numpy()
@@ -179,4 +198,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-    # torch.save(model, "pointnet++.pt")
+    torch.save(model, "pointnet++.pt")
