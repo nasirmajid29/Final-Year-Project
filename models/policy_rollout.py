@@ -58,13 +58,13 @@ def create_transform(translation, rotation):
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_red_ball_pointnet++.pt", map_location=torch.device('cpu'))
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_pnpp.pt", map_location=device)#torch.device('cpu'))
 model.eval()
 
 env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
  
 training_steps = 200 #120
-episode_length = 100 #40
+episode_length = 100 #100 #40
 for i in range(training_steps):
     if i % episode_length == 0:
         print('Reset Episode')
@@ -121,7 +121,7 @@ for i in range(training_steps):
     action = np.zeros(8)
     action[6] = 1
     pred_action = model(data)
-    action[:3] = pred_action.detach().numpy()
+    action[:3] = pred_action.cpu().detach().numpy()
 
     # action = [0.1, 0.1, 0.1, 0, 0, 0, 1, 0]
 

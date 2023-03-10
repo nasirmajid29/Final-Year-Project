@@ -15,6 +15,8 @@ import numpy as np
 
 import wandb
 import pyvista
+import matplotlib.pyplot as plt
+import os
 
 wandb.init(project="test-project", entity="final-year-project")
 
@@ -23,9 +25,12 @@ wandb.config.update({
   "optimiser": "Adam",
   "epochs": 30,
   "batch_size": 32,
-  "ratio": [0.25, 0.125],
-  "radius": [0.1, 0.2]
+  "ratio": [0.1, 0.05],
+  "radius": [0.05, 0.1]
 })
+
+
+# os.environ['WANDB_MODE'] = 'offline'
 
 def visualise_pc_radius(point_cloud, indices, radius):
     
@@ -85,8 +90,8 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.25, 0.1, MLP([9, 32, 64]))
-        self.sa2_module = SAModule(0.125, 0.2, MLP([64 + 3, 128, 256]))
+        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
+        self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
         self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
@@ -125,10 +130,10 @@ def train(epoch):
         
         loss.backward()
         optimizer.step()
-        break
+        # break
 
 
-    avg_loss = total_loss / len(train_loader)
+    avg_loss = total_loss #/ len(train_loader)
     print(f'Epoch: {epoch:03d}, Average Training Loss: {avg_loss:.4f}')
 
     wandb.log({"training loss": avg_loss})
@@ -143,6 +148,7 @@ def test(loader):
         data = data.to(device)
         with torch.no_grad():
             pred = model(data)
+            # print("Prediction: ", pred)
         #     predmax = model(data).max(1)[1]
         # correct += predmax.eq(data.y).sum().item()
     return F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
@@ -176,8 +182,82 @@ if __name__ == '__main__':
     #                          num_workers=6)
 
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=True, num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=False, num_workers=6) #shuffle true #batch 32
     test_loader = DataLoader(point_cloud_data_test, batch_size=32, shuffle=False,num_workers=6)
+    
+    # train_x = []
+    # train_y = []
+    # train_z = []
+    # for data in train_loader:
+    #     for point in data.pos:
+    #         train_x.append(point[0])
+    #         train_y.append(point[1])
+    #         train_z.append(point[2])
+            
+    # # fixed bin size
+    # bins = np.arange(-0.11, 0.11, 0.005) # fixed bin size
+
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(train_x, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - X coordinate')
+    # plt.xlabel('X values')
+    # plt.ylabel('count')
+    # plt.savefig('train_x.png')
+    # plt.clf()
+    
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(train_y, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - Y coordinate')
+    # plt.xlabel('Y values')
+    # plt.ylabel('count')
+    # plt.savefig('train_y.png')
+    # plt.clf()
+    
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(train_z, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - Z coordinate')
+    # plt.xlabel('Z values')
+    # plt.ylabel('count')
+    # plt.savefig('train_z.png')   
+    # plt.clf()
+    
+    # test_x = []
+    # test_y = []
+    # test_z = []
+    # for data in test_loader:
+    #     for point in data.pos:
+    #         test_x.append(point[0])
+    #         test_y.append(point[1])
+    #         test_z.append(point[2])
+            
+    # # fixed bin size
+    # bins = np.arange(-0.11, 0.11, 0.005) # fixed bin size
+
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(test_x, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Testing data - X coordinate')
+    # plt.xlabel('X values')
+    # plt.ylabel('count')
+    # plt.savefig('test_x.png')
+    # plt.clf()
+    
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(test_y, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Testing data - Y coordinate')
+    # plt.xlabel('Y values')
+    # plt.ylabel('count')
+    # plt.savefig('test_y.png')
+    # plt.clf()
+    
+    # plt.xlim([-0.11, 0.11])
+    # plt.hist(test_z, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Testing data - Z coordinate')
+    # plt.xlabel('Z values')
+    # plt.ylabel('count')
+    # plt.savefig('test_z.png')   
+    # plt.clf()
+    
+
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
