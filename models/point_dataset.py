@@ -152,9 +152,10 @@ class PointDataset(Dataset):
 
             # if self.train:
             torch.save(train_data, f'{self.root}/processed/data_train.pt')
-                  
+                  # return train_data
             # else:
             torch.save(test_data, f'{self.root}/processed/data_test.pt')
+                  # return test_data
 
             return train_data if self.train else test_data #data_list
 
@@ -163,7 +164,14 @@ class PointDataset(Dataset):
       #       return torch.tensor(label, dtype=torch.int64)
 
       def __len__(self):
-            return self.data.shape[0]
+            # return self.data.shape[0]
+            if self.train:
+                  data = torch.load(f'{self.processed_dir}/data_train.pt')
+            else:
+                  data = torch.load(f'{self.processed_dir}/data_test.pt')
+            return len(data)
+      
+      
 
       def __getitem__(self, idx):
             """ - Equivalent to __getitem__ in pytorch
@@ -171,12 +179,10 @@ class PointDataset(Dataset):
             """
             if self.train:
                   data = torch.load(f'{self.root}/processed/data_train.pt')
-                  data_point = data[idx]
             else:
                   data = torch.load(f'{self.root}/processed/data_test.pt')
-                  data_point = data[idx] 
 
-            return data_point
+            return data[idx]
 
 
 # class PointDataset(Dataset):
