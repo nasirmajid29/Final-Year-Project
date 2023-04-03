@@ -151,12 +151,12 @@ class PointDataset(Dataset):
             train_data, test_data = random_split(data_list, [0.8, 0.2])
 
             # if self.train:
-            torch.save(data_list, f'{self.root}/processed/data_train.pt')
+            torch.save(train_data, f'{self.root}/processed/data_train.pt')
                   
             # else:
-            torch.save(data_list, f'{self.root}/processed/data_test.pt')
+            torch.save(test_data, f'{self.root}/processed/data_test.pt')
 
-            return train_data, test_data #data_list
+            return train_data if self.train else test_data #data_list
 
       # def _get_labels(self, label):
       #       label = np.asarray([label])
