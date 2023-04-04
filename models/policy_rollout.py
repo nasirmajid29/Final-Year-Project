@@ -5,6 +5,7 @@ import numpy as np
 import torch
 from simple_pointnet_pp import Net, SAModule, GlobalSAModule
 from torch_geometric.data import Data, Dataset
+from GPUtil import showUtilization as gpu_usage
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -55,82 +56,106 @@ def create_transform(translation, rotation):
     
     return transform
 
+gpu_usage()
+torch.cuda.empty_cache()
+# print(torch.cuda.memory_allocated())
+gpu_usage()
+
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_target_pnpp.pt", map_location=device)#torch.device('cpu'))
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_pnpp_fixed.pt", map_location=device) #torch.device('cpu'))
 model.eval()
 
 env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
  
 training_steps = 200 #120
 episode_length = 100 #100 #40
-for i in range(training_steps):
-    if i % episode_length == 0:
-        print('Reset Episode')
-        obs = env.reset()
-    # print(action)
-    # 8 nums, 3 translate, 4 quaternion, 1 gripper
+
+runs = 5 #100
+episode_length = 5 #100
+for i in range(runs): 
+    for j in range(episode_length):
+        if j == 0:
+            print('Reset Episode')
+            obs = env.reset()
+        # print(action)
+        # 8 nums, 3 translate, 4 quaternion, 1 gripper
+        print("Step ", j, "of run ", i)
 
 
-    front_colour_pc_world = np.append(np.array(obs["front_point_cloud"]).reshape(-1,3), np.array(obs["front_rgb"]).reshape(-1,3), axis=1)
-    wrist_colour_pc_world = np.append(np.array(obs["wrist_point_cloud"]).reshape(-1,3), np.array(obs["wrist_rgb"]).reshape(-1,3), axis=1)
-    ls_colour_pc_world = np.append(np.array(obs["left_shoulder_point_cloud"]).reshape(-1,3), np.array(obs["left_shoulder_rgb"]).reshape(-1,3), axis=1)
-    rs_colour_pc_world = np.append(np.array(obs["right_shoulder_point_cloud"]).reshape(-1,3), np.array(obs["right_shoulder_rgb"]).reshape(-1,3), axis=1)
-    oh_colour_pc_world = np.append(np.array(obs["overhead_point_cloud"]).reshape(-1,3), np.array(obs["overhead_rgb"]).reshape(-1,3), axis=1)
-    
-    front_mask = np.array(obs["front_mask"]).reshape(-1)
-    wrist_mask = np.array(obs["wrist_mask"]).reshape(-1)
-    left_shoulder_mask = np.array(obs["left_shoulder_mask"]).reshape(-1)
-    right_shoulder_mask = np.array(obs["right_shoulder_mask"]).reshape(-1)
-    overhead_mask = np.array(obs["overhead_mask"]).reshape(-1)
-    
-    
-
-    # 165 low limit
-    maskNum = 213
-    ls_colour_pc_world = ls_colour_pc_world[left_shoulder_mask < maskNum]
-    rs_colour_pc_world = rs_colour_pc_world[right_shoulder_mask < maskNum]
-    front_colour_pc_world = front_colour_pc_world[np.logical_and(front_mask < 210, front_mask > 165)]
-    wrist_colour_pc_world = wrist_colour_pc_world[wrist_mask < maskNum]
-    oh_colour_pc_world = oh_colour_pc_world[overhead_mask < maskNum]
+        front_colour_pc_world = np.append(np.array(obs["front_point_cloud"]).reshape(-1,3), np.array(obs["front_rgb"]).reshape(-1,3), axis=1)
+        wrist_colour_pc_world = np.append(np.array(obs["wrist_point_cloud"]).reshape(-1,3), np.array(obs["wrist_rgb"]).reshape(-1,3), axis=1)
+        ls_colour_pc_world = np.append(np.array(obs["left_shoulder_point_cloud"]).reshape(-1,3), np.array(obs["left_shoulder_rgb"]).reshape(-1,3), axis=1)
+        rs_colour_pc_world = np.append(np.array(obs["right_shoulder_point_cloud"]).reshape(-1,3), np.array(obs["right_shoulder_rgb"]).reshape(-1,3), axis=1)
+        oh_colour_pc_world = np.append(np.array(obs["overhead_point_cloud"]).reshape(-1,3), np.array(obs["overhead_rgb"]).reshape(-1,3), axis=1)
+        
+        front_mask = np.array(obs["front_mask"]).reshape(-1)
+        wrist_mask = np.array(obs["wrist_mask"]).reshape(-1)
+        left_shoulder_mask = np.array(obs["left_shoulder_mask"]).reshape(-1)
+        right_shoulder_mask = np.array(obs["right_shoulder_mask"]).reshape(-1)
+        overhead_mask = np.array(obs["overhead_mask"]).reshape(-1)
+        
         
 
-    full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
-    full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
-    full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
+        # 165 low limit
+        maskNum = 213
+        ls_colour_pc_world = ls_colour_pc_world[left_shoulder_mask < maskNum]
+        rs_colour_pc_world = rs_colour_pc_world[right_shoulder_mask < maskNum]
+        front_colour_pc_world = front_colour_pc_world[np.logical_and(front_mask < 210, front_mask > 165)]
+        wrist_colour_pc_world = wrist_colour_pc_world[wrist_mask < maskNum]
+        oh_colour_pc_world = oh_colour_pc_world[overhead_mask < maskNum]
+            
+
+        full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
+        full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
+        full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
 
 
-    gripper_pos = obs["gripper_pose"]
-    gripper_coord, gripper_rotation_quat = gripper_pos[:3], gripper_pos[3:]
-    gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
-    gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+        gripper_pos = obs["gripper_pose"]
+        gripper_coord, gripper_rotation_quat = gripper_pos[:3], gripper_pos[3:]
+        gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
+        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
 
-    full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
-    full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
-    full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
+        full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
+        full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
+        full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
-    full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
+        full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
 
-    data = Data(x = full_colour_pc_gripper)
-    data.pos = full_colour_pc_gripper[:, :3]
+        data = Data(x = full_colour_pc_gripper)
+        data.pos = full_colour_pc_gripper[:, :3]
 
-    data.batch = torch.zeros(full_colour_pc_gripper.size(0), dtype=torch.int64)
-    data = data.to(device)
-    
-    action = np.zeros(8)
-    action[6] = 1
-    pred_action = model(data)
-    action[:3] = pred_action.cpu().detach().numpy()
+        data.batch = torch.zeros(full_colour_pc_gripper.size(0), dtype=torch.int64)
+        data = data.to(device)
+        
+        action = np.zeros(8)
+        action[6] = 1
+        pred_action = model(data)
+        action[:3] = pred_action.cpu().detach().numpy()
+        
+        # action = [0.1, 0, 0, 0, 0, 0, 1, 0]
 
-    # action = [0.1, 0.1, 0.1, 0, 0, 0, 1, 0]
+        # action = env.action_space.sample()
+        # print(action)
+        # action[3:7] = [0, 0, 0, 1]
+        
+        # print("--------------------")
+        # print("Gripper pose: ", gripper_pos)
+        # print("Action taken: ", action)
 
-    # action = env.action_space.sample()
-    # action[3:7] = [0, 0, 0, 1]
-    print(action)
+        obs, reward, terminate, _ = env.step(action)
+        
+        if terminate:
+            break
+        
+        # print("Resulting gripper pose: ", obs["gripper_pose"])
+        # difference = gripper_pos - obs["gripper_pose"]
+        # print("Difference: ", difference)
+        # print("How close to action: ", difference-action[:7])
+        # print("--------------------")
 
-    obs, reward, terminate, _ = env.step(action)
-    env.render()  # Note: rendering increases step time.
+        env.render()  # Note: rendering increases step time.
 
 print('Done')
 env.close()
