@@ -74,6 +74,10 @@ episode_length = 100 #100 #40
 
 runs = 5 #100
 episode_length = 5 #100
+
+reach_goal = np.array([False]*runs)
+time_to_goal = np.zeros(runs)
+
 for i in range(runs): 
     for j in range(episode_length):
         if j == 0:
@@ -147,7 +151,16 @@ for i in range(runs):
         obs, reward, terminate, _ = env.step(action)
         
         if terminate:
+            reach_goal[i] = True
+            time_to_goal = j
             break
+        
+        if j == episode_length - 1:
+            reach_goal[i] = False
+            time_to_goal[i] = -1
+        
+        print(reach_goal)
+        print(time_to_goal)            
         
         # print("Resulting gripper pose: ", obs["gripper_pose"])
         # difference = gripper_pos - obs["gripper_pose"]
