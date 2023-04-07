@@ -157,10 +157,7 @@ for i in range(runs):
         
         if j == episode_length - 1:
             reach_goal[i] = False
-            time_to_goal[i] = -1
-        
-        print(reach_goal)
-        print(time_to_goal)            
+            time_to_goal[i] = -1            
         
         # print("Resulting gripper pose: ", obs["gripper_pose"])
         # difference = gripper_pos - obs["gripper_pose"]
@@ -170,5 +167,12 @@ for i in range(runs):
 
         env.render()  # Note: rendering increases step time.
 
+
+accuracy = reach_goal.sum() / runs
+avg_speed = np.mean(time_to_goal[time_to_goal != 0])
+
 print('Done')
+print("Accuracy = ", accuracy)
+print("Average speed = ", avg_speed)
+
 env.close()
