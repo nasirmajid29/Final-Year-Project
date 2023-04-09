@@ -107,7 +107,7 @@ class Net(torch.nn.Module):
 
         # print(x.dtype)
 
-        return self.mlp(x)#.log_softmax(dim=-1)
+        return self.mlp(x)
 
 
 def train(epoch):
@@ -171,6 +171,9 @@ if __name__ == '__main__':
     point_cloud_data_train = PointDataset("data/reach_red_ball", "data.pt", True, pre_transform)
     
     point_cloud_data_test = PointDataset("data/reach_red_ball", "data.pt", False, pre_transform)
+    
+    print(len(point_cloud_data_train))
+    print(len(point_cloud_data_test))
     
     
     # train_dataset = ModelNet(path, '10', True, transform, pre_transform)

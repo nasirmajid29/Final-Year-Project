@@ -147,7 +147,12 @@ def depth_to_pc(obs_config, task_name):
     #                  obs_config: ObservationConfig,
     #                  random_selection: bool = True,
     #                  from_episode_number: int = 0) -> List[Demo]:
-    demos = get_stored_demos(-1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=6)
+    
+    # personal path "/home/nasir/Desktop/Demos"
+    # lab path "/vol/bitbucket/nm219/Demos"
+    # amount -1
+    
+    demos = get_stored_demos(100, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=600)
     return demos
 
 def transform_between_frames(frame1, frame2):
@@ -282,9 +287,9 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-
+demo_folder = "reach_target_1000eps"
 config = get_config([128,128])
-demos = depth_to_pc(config, "reach_target")
+demos = depth_to_pc(config, demo_folder)
 
 full_dataset = np.empty((1,2), dtype=object)
 
@@ -364,9 +369,9 @@ for i in range(len(demos)):
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
         # print(np.unique(full_colour_pc_world[:,3]))
 
-    if i == 1:
-        # visualise_pc_rgb(oh_colour_pc_world)
-        visualise_pc_rgb(full_colour_pc_world)
+    # if i == 1:
+    #     # visualise_pc_rgb(oh_colour_pc_world)
+    #     visualise_pc_rgb(full_colour_pc_world)
 
 
     all_gripper_frames = []
@@ -418,7 +423,7 @@ for i in range(len(demos)):
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
 
-torch.save(full_dataset, 'example.pt')
+torch.save(full_dataset, demo_folder+'_7.pt')
 
 
 # print(len(dataset))
