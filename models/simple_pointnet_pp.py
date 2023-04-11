@@ -133,7 +133,7 @@ def train(epoch):
         # break
 
 
-    avg_loss = total_loss #/ len(train_loader)
+    avg_loss = total_loss / len(train_loader)
     print(f'Epoch: {epoch:03d}, Average Training Loss: {avg_loss:.4f}')
 
     wandb.log({"training loss": avg_loss})
@@ -161,16 +161,16 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     gpu_usage()
     
-
+    data_loc = "data/reach_target_100eps"
     # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
     #                 'data/ModelNet10')
 
     pre_transform = T.NormalizeScale()
     # transform = T.SamplePoints(64)
     
-    point_cloud_data_train = PointDataset("data/reach_red_ball", "data.pt", True, pre_transform)
+    point_cloud_data_train = PointDataset(data_loc, "data.pt", True, pre_transform)
     
-    point_cloud_data_test = PointDataset("data/reach_red_ball", "data.pt", False, pre_transform)
+    point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
     
     print(len(point_cloud_data_train))
     print(len(point_cloud_data_test))
