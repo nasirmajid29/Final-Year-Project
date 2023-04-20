@@ -211,14 +211,11 @@ def quaternion_rotation_matrix(quaternion):
 
     return rot_matrix
 
-def create_transform(translation, rotation, gripper_open):
+def create_transform(translation, rotation):
     
     transform = np.identity(4)    
     transform[:3, :3] = rotation
     transform[:3, 3] = translation
-    
-    if not gripper_open:
-        transform[3, 0] = 1
     
     return transform
 
@@ -395,6 +392,7 @@ for i in range(len(demos)):
 
     all_gripper_frames = []
     all_gripper_pc = []
+    all_gripper_states = []
     for j in range(len(demos[i]._observations)):
         
         gripper_open = demos[i]._observations[j].gripper_open
@@ -402,7 +400,7 @@ for i in range(len(demos)):
         gripper_coord = gripper_pos[:3]
         gripper_rotation_quat = gripper_pos[3:]
         gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
-        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix, gripper_open)
+        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
 
         full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
         full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
@@ -411,6 +409,7 @@ for i in range(len(demos)):
 
         all_gripper_frames.append(gripper_frame)
         all_gripper_pc.append(full_colour_pc_gripper)
+        all_gripper_states.append(gripper_open)
 
     all_actions = []
 
@@ -420,7 +419,11 @@ for i in range(len(demos)):
             continue
 
         next_frame = all_gripper_frames[index+1]
+        next_gripper_state = all_gripper_states[index+1]
         action = transform_between_frames(frame, next_frame)
+        
+        if not next_gripper_state:
+            action[3,0] = 1
         all_actions.append(action)
 
     all_actions.append(np.zeros((4,4)))
