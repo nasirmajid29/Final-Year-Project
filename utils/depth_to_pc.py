@@ -152,7 +152,7 @@ def depth_to_pc(obs_config, task_name):
     # lab path "/vol/bitbucket/nm219/Demos"
     # amount -1
     
-    demos = get_stored_demos(-1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=600)
+    demos = get_stored_demos(-1, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=0)
     return demos
 
 def transform_between_frames(frame1, frame2):
@@ -211,11 +211,14 @@ def quaternion_rotation_matrix(quaternion):
 
     return rot_matrix
 
-def create_transform(translation, rotation):
+def create_transform(translation, rotation, gripper_open):
     
     transform = np.identity(4)    
     transform[:3, :3] = rotation
     transform[:3, 3] = translation
+    
+    if not gripper_open:
+        transform[3, 0] = 1
     
     return transform
 
@@ -287,7 +290,7 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "take_off_weighing_scales"
+demo_folder = "pick_and_lift_200eps"
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
 
@@ -365,12 +368,11 @@ for i in range(len(demos)):
 
     red_ball_only = False
     box_only = False
-    yellow_cube_only = False
+    yellow_cube_only = True
     charger_only = False
-    scales_only = True
+    scales_only = False
 
     if red_ball_only:
-
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
         # print(np.unique(full_colour_pc_world[:,3]))
     
@@ -386,22 +388,21 @@ for i in range(len(demos)):
     if scales_only:
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] < 160) & (full_colour_pc_world[:,4] < 150) & (full_colour_pc_world[:,5] < 150)] #& (full_colour_pc_world[:,4] < 135) & (full_colour_pc_world[:,5] > 45)]
 
-
-
-    if i == 0:
-        # visualise_pc_rgb(oh_colour_pc_world)
-        visualise_pc_rgb(full_colour_pc_world)
+    # if i == 0:
+    #     # visualise_pc_rgb(oh_colour_pc_world)
+    #     visualise_pc_rgb(full_colour_pc_world)
 
 
     all_gripper_frames = []
     all_gripper_pc = []
     for j in range(len(demos[i]._observations)):
-
+        
+        gripper_open = demos[i]._observations[j].gripper_open
         gripper_pos = demos[i]._observations[j].gripper_pose
         gripper_coord = gripper_pos[:3]
         gripper_rotation_quat = gripper_pos[3:]
         gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
-        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix, gripper_open)
 
         full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
         full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
@@ -441,10 +442,9 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
+torch.save(full_dataset, '/vol/bitbucket/nm219/data/pick_and_lift_200eps.pt')
 
-# torch.save(full_dataset, demo_folder+'.pt')
-
-
+#/vol/bitbucket/nm219/data/
 # print(len(dataset))
 
 
