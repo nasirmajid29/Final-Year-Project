@@ -94,7 +94,7 @@ class Net(torch.nn.Module):
         self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
-        self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([512, 256, 32, 8], dropout=0.5, norm=None)
 
     def forward(self, data):
         # print(data.dtype)

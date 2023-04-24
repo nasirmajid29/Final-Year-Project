@@ -99,8 +99,9 @@ class ComplexPointDataset(Dataset):
                   action_translate = action[:3, 3].view(1,3)
                   matrix = action[:3,:3].view(1,9)
                   action_rotate = rotation_matrix_quaternion(matrix)
+                  gripper_state = action[3,0]
                   
-                  action = np.append(action_translate, action_rotate)
+                  action = np.concatenate((action_translate, action_rotate, [gripper_state]))
                   # print(action.size())
                   
                   data = Data(x = point_cloud, y = action)
