@@ -11,7 +11,7 @@ from torch_geometric.nn import MLP, PointConv, fps, global_max_pool, radius
 from GPUtil import showUtilization as gpu_usage
 import matplotlib.pyplot as plt
 from point_dataset import PointDataset
-from complex_point_dataset import ComplexPointDataset
+from mat_complex_point_dataset import MatComplexPointDataset
 import numpy as np
 
 import wandb
@@ -95,7 +95,7 @@ class Net(torch.nn.Module):
         self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
         self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
-        self.mlp = MLP([512, 256, 32, 8], dropout=0.5, norm=None)
+        self.mlp = MLP([512, 256, 32, 13], dropout=0.5, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
@@ -170,9 +170,9 @@ if __name__ == '__main__':
     pre_transform = T.NormalizeScale()
     # transform = T.SamplePoints(64)
     
-    point_cloud_data_train = ComplexPointDataset(data_loc, "data.pt", True, pre_transform)
+    point_cloud_data_train = MatComplexPointDataset(data_loc, "data.pt", True, pre_transform)
     
-    point_cloud_data_test = ComplexPointDataset(data_loc, "data.pt", False, pre_transform)
+    point_cloud_data_test = MatComplexPointDataset(data_loc, "data.pt", False, pre_transform)
     
     print(len(point_cloud_data_train))
     print(len(point_cloud_data_test))
