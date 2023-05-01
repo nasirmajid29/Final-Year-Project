@@ -57,7 +57,7 @@ def rotation_matrix_quaternion(rot_matrix):
         q3 = 0.25 * S
     
     # Return the quaternion as a numpy array
-    quaternion = np.array([q0, q1, q2, q3])
+    quaternion = torch.Tensor([q0, q1, q2, q3])
     return quaternion
 
 
@@ -96,13 +96,14 @@ class ComplexPointDataset(Dataset):
             for state_action_pair in self.data:
                   point_cloud, action = torch.tensor(state_action_pair[0], dtype=torch.float32), torch.tensor(state_action_pair[1], dtype=torch.float32)
 
-                  action_translate = action[:3, 3].view(1,3)
-                  matrix = action[:3,:3].view(1,9)
+                  action_translate = action[:3, 3].view(-1) #(1,3)
+                  matrix = action[:3,:3]
                   action_rotate = rotation_matrix_quaternion(matrix)
-                  gripper_state = action[3,0]
+                  gripper_state = action[3,0].reshape(1)
                   
-                  action = np.concatenate((action_translate, action_rotate, [gripper_state]))
+                  action = torch.cat((action_translate, action_rotate, gripper_state), dim=0)
                   # print(action.size())
+                  action = action.view(1,8)
                   
                   data = Data(x = point_cloud, y = action)
                   data.pos = point_cloud[:, :3]

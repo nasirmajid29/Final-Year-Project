@@ -19,13 +19,14 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
-wandb.init(project="test-project", entity="final-year-project")
+data = 'take_off_weighing_scales_200eps'
+wandb.init(project="Episode Length", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
   "optimiser": "Adam",
   "epochs": 30,
-  "batch_size": 32,
+  "batch_size": 16,
   "ratio": [0.1, 0.05],
   "radius": [0.05, 0.1]
 })
@@ -163,7 +164,7 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     gpu_usage()
     
-    data_loc = "/vol/bitbucket/nm219/data/reach_target_200eps"
+    data_loc = "/vol/bitbucket/nm219/data/"+data
     # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
     #                 'data/ModelNet10')
 
@@ -187,8 +188,8 @@ if __name__ == '__main__':
     #                          num_workers=6)
 
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=False, num_workers=6) #shuffle true #batch 32
-    test_loader = DataLoader(point_cloud_data_test, batch_size=32, shuffle=False,num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=16, shuffle=False, num_workers=0) #shuffle true #batch 32
+    test_loader = DataLoader(point_cloud_data_test, batch_size=16, shuffle=False,num_workers=0)
     
     # train_x = []
     # train_y = []
@@ -295,4 +296,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-    torch.save(model, "reach_target_200eps_pnpp.pt")
+    torch.save(model, data+"_quat_pnpp.pt")
