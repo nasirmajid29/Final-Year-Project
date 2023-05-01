@@ -7,6 +7,8 @@ from simple_pointnet_pp import Net, SAModule, GlobalSAModule
 from torch_geometric.data import Data, Dataset
 from GPUtil import showUtilization as gpu_usage
 
+import torch_geometric.transforms as T
+
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
     num_points = point_cloud.shape[0]
@@ -64,7 +66,7 @@ gpu_usage()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_target_pnpp_fixed.pt", map_location=device) #torch.device('cpu'))
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_100eps_pnpp.pt", map_location=device) #torch.device('cpu'))
 model.eval()
 
 env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
@@ -72,8 +74,8 @@ env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='v
 training_steps = 200 #120
 episode_length = 100 #100 #40
 
-runs = 5 #100
-episode_length = 5 #100
+runs = 10 #100
+episode_length = 75 #100
 
 reach_goal = np.array([False]*runs)
 time_to_goal = np.zeros(runs)
@@ -129,12 +131,17 @@ for i in range(runs):
 
         data = Data(x = full_colour_pc_gripper)
         data.pos = full_colour_pc_gripper[:, :3]
+        
+        
+        pre_transform = T.NormalizeScale()
+        data = pre_transform(data)
 
         data.batch = torch.zeros(full_colour_pc_gripper.size(0), dtype=torch.int64)
         data = data.to(device)
         
         action = np.zeros(8)
         action[6] = 1
+        action[7] = 1
         pred_action = model(data)
         action[:3] = pred_action.cpu().detach().numpy()
         
@@ -152,7 +159,7 @@ for i in range(runs):
         
         if terminate:
             reach_goal[i] = True
-            time_to_goal = j
+            time_to_goal[i] = j
             break
         
         if j == episode_length - 1:
@@ -169,6 +176,9 @@ for i in range(runs):
 
 
 accuracy = reach_goal.sum() / runs
+
+time_to_goal = time_to_goal[time_to_goal > 0]
+
 avg_speed = np.mean(time_to_goal[time_to_goal != 0])
 
 print('Done')
