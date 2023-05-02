@@ -1,3 +1,4 @@
+#Inspired by https://wandb.ai/geekyrakshit/pyg-point-cloud/reports/Point-Cloud-Classification-Using-PyTorch-Geometric--VmlldzozMTExMTE3
 import os.path as osp
 
 import torch
@@ -18,7 +19,9 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
-wandb.init(project="test-project", entity="final-year-project")
+
+data = 'reach_target_10eps'
+wandb.init(project="Rollout", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -90,19 +93,29 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
-        self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
-        self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
+        # self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
+        # self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
+        # self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
-        self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
+        # self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
+        
+        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 24]))
+        # self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
+        self.sa3_module = GlobalSAModule(MLP([24 + 3, 64]))
+
+        self.mlp = MLP([64, 32, 3], dropout=0.5, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
         sa0_out = (data.x, data.pos, data.batch)
         # print(np.array(data.batch).shape)
+        # sa1_out = self.sa1_module(*sa0_out)
+        # sa2_out = self.sa2_module(*sa1_out)
+        # sa3_out = self.sa3_module(*sa2_out)
+        # x, pos, batch = sa3_out
+        
         sa1_out = self.sa1_module(*sa0_out)
-        sa2_out = self.sa2_module(*sa1_out)
-        sa3_out = self.sa3_module(*sa2_out)
+        sa3_out = self.sa3_module(*sa1_out)
         x, pos, batch = sa3_out
 
         # print(x.dtype)
@@ -134,7 +147,7 @@ def train(epoch):
 
 
     avg_loss = total_loss / len(train_loader)
-    print(f'Epoch: {epoch:03d}, Average Training Loss: {avg_loss:.4f}')
+    print(f'Epoch: {epoch:03d}, Training Loss: {avg_loss:.4f}')
 
     wandb.log({"training loss": avg_loss})
     wandb.watch(model)
@@ -143,7 +156,7 @@ def train(epoch):
 def test(loader):
     model.eval()
 
-    # correct = 0
+    total_loss = 0
     for data in loader:
         data = data.to(device)
         with torch.no_grad():
@@ -151,17 +164,22 @@ def test(loader):
             # print("Prediction: ", pred)
         #     predmax = model(data).max(1)[1]
         # correct += predmax.eq(data.y).sum().item()
-    return F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
+            loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
+            total_loss += loss
+            
+    val_loss = total_loss / len(loader)
+    return val_loss
         
 
 
 if __name__ == '__main__':
 
+    print(torch.cuda.is_available())
     gpu_usage()
     torch.cuda.empty_cache()
     gpu_usage()
     
-    data_loc = "data/reach_target_100eps"
+    data_loc = "/vol/bitbucket/nm219/data/"+data
     # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
     #                 'data/ModelNet10')
 
@@ -172,6 +190,7 @@ if __name__ == '__main__':
     
     point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
     
+    print(data)
     print(len(point_cloud_data_train))
     print(len(point_cloud_data_test))
     
@@ -185,8 +204,8 @@ if __name__ == '__main__':
     #                          num_workers=6)
 
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=False, num_workers=6) #shuffle true #batch 32
-    test_loader = DataLoader(point_cloud_data_test, batch_size=32, shuffle=False,num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=16, shuffle=False, num_workers=6)
+    test_loader = DataLoader(point_cloud_data_test, batch_size=16, shuffle=False,num_workers=6)
     
     # train_x = []
     # train_y = []
@@ -274,7 +293,7 @@ if __name__ == '__main__':
 
     epoch_losses = []
     accuracies = []
-    for epoch in range(30): #201
+    for epoch in range(30): #30
         train(epoch)
         loss = test(test_loader)
         loss = loss.detach().cpu().numpy()
@@ -293,4 +312,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-    torch.save(model, "pointnet++.pt")
+    torch.save(model, data+"_pnpp_smaller.pt")
