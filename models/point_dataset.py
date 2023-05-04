@@ -14,6 +14,8 @@ import torch
 from torch import Tensor
 
 from torch_geometric.data import Data, Dataset
+
+import open3d as o3d
    
 
 
@@ -132,8 +134,21 @@ class PointDataset(Dataset):
                   action = action[:3, 3].view(1,3)
                   # print(action.size())
                   
-                  data = Data(x = point_cloud, y = action)
-                  data.pos = point_cloud[:, :3]
+                  # data = Data(x = point_cloud, y = action)
+                  # data.pos = point_cloud[:, :3]
+                  
+                  downsample = True
+                  if downsample:
+                        
+                        o3d_pc = o3d.geometry.PointCloud()
+                        o3d_pc.points = o3d.utility.Vector3dVector(point_cloud.numpy())
+                  
+                        voxel_size = 0.1  # 0.5 0.25 0.1 
+                        downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
+                        
+                        point_cloud = torch.tensor(downsampled_o3d_pc.points)
+                  
+                  data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3])
 
                   # print(data.x.size())
                   # print(data.y.size())
@@ -147,8 +162,10 @@ class PointDataset(Dataset):
             if self.transform is not None:
                   data_list = [self.transform(d) for d in data_list] 
 
-        
-            train_data, test_data = random_split(data_list, [0.8, 0.2])
+
+            num_elems = len(data_list)
+            split_point = round(num_elems * 0.8)
+            train_data, test_data = data_list[:split_point], data_list[split_point:] #random_split(data_list, [0.8, 0.2])
 
             # if self.train:
             torch.save(train_data, f'{self.root}/processed/data_train.pt')
