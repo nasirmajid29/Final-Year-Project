@@ -138,21 +138,30 @@ class PointDataset(Dataset):
                   # data = Data(x = point_cloud, y = action)
                   # data.pos = point_cloud[:, :3]
 
-                  normalise = False # True
+                  normalise = True # True
                   unnormalise = False # True
                   
                   if normalise:
-                        print("hi")
-                        max = 0.05
-                        min = -0.05
+                        maximum = 0.05
+                        minimum = -0.05
 
-                        range = max - min
+                        range = maximum - minimum
 
-                        action[0] = 2((action[0] - min) / range) - 1
-                        action[1] = 2((action[1] - min) / range) - 1
-                        action[2] = 2((action[2] - min) / range) - 1
+                        action[0][0] = 2*((action[0][0] - minimum) / range) - 1
+                        action[0][1] = 2*((action[0][1] - minimum) / range) - 1
+                        action[0][2] = 2*((action[0][2] - minimum) / range) - 1
 
-                  # if unnormalise:
+                  if unnormalise:
+
+                        maximum = 0.05
+                        minimum = -0.05
+
+                        range = maximum - minimum
+
+                        action[0][0] = (range * (action[0][0] + 1)/2) + minimum    
+                        action[0][1] = (range * (action[0][1] + 1)/2) + minimum    
+                        action[0][2] = (range * (action[0][2] + 1)/2) + minimum    
+
 
                   downsample = False #True
                   if downsample:

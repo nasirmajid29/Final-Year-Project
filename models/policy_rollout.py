@@ -8,6 +8,8 @@ from torch_geometric.data import Data, Dataset
 from GPUtil import showUtilization as gpu_usage
 
 import torch_geometric.transforms as T
+import pyvista
+
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -50,6 +52,28 @@ def quaternion_rotation_matrix(quaternion):
 
     return rot_matrix
 
+def cumulative_sum(actions):
+    
+    cumulative_sum = np.cumsum(actions, axis=0)
+    result = [tuple(point) for point in cumulative_sum]
+    
+    return result
+
+def visualise_policy(point_clouds, actions):
+    
+    gripper_points = cumulative_sum(actions)
+    
+    plotter = pyvista.Plotter(off_screen=True)
+    for point_cloud in point_clouds:
+        points, colours = np.hsplit(point_cloud, 2)
+        plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+
+    poly = pyvista.lines_from_points(gripper_points)
+   
+    plotter.add_mesh(poly, color='yellow', line_width=5)
+  
+    plotter.screenshot("policy.png")
+
 def create_transform(translation, rotation):
     
     transform = np.identity(4)    
@@ -66,7 +90,7 @@ gpu_usage()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_target_100eps_pnpp.pt", map_location=device) #torch.device('cpu'))
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_10eps_pnpp_actionnormalise.pt", map_location=device) #torch.device('cpu'))
 model.eval()
 
 env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
@@ -81,6 +105,8 @@ reach_goal = np.array([False]*runs)
 time_to_goal = np.zeros(runs)
 
 for i in range(runs): 
+    policy_pcs = []
+    policy_actions = []
     for j in range(episode_length):
         if j == 0:
             print('Reset Episode')
@@ -128,13 +154,22 @@ for i in range(runs):
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
         full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
+        
+        fixed_sample = False
+        if fixed_sample:
+            full_colour_pc_gripper = full_colour_pc_gripper[torch.randperm(full_colour_pc_gripper.size(0))[:50]]
+        
+        policy_pcs.append(full_colour_pc_gripper.numpy())
 
-        data = Data(x = full_colour_pc_gripper)
+        data = Data(x = full_colour_pc_gripper[:, 3:])
         data.pos = full_colour_pc_gripper[:, :3]
         
         
-        pre_transform = T.NormalizeScale()
-        data = pre_transform(data)
+        # pre_transform = T.NormalizeScale()
+        # data = pre_transform(data)
+        
+        # transform = T.SamplePoints(10)
+        # data = transform(data)
 
         data.batch = torch.zeros(full_colour_pc_gripper.size(0), dtype=torch.int64)
         data = data.to(device)
@@ -144,6 +179,20 @@ for i in range(runs):
         action[7] = 1
         pred_action = model(data)
         action[:3] = pred_action.cpu().detach().numpy()
+
+        unnormalise = True
+        if unnormalise:
+
+            max = 0.05
+            min = -0.05
+
+            num_range = max - min
+
+            action[0] = (num_range * (action[0] + 1)/2) + min    
+            action[1] = (num_range * (action[1] + 1)/2) + min    
+            action[2] = (num_range * (action[2] + 1)/2) + min    
+        
+        policy_actions.append(action[:3])
         
         # action = [0.1, 0, 0, 0, 0, 0, 1, 0]
 
@@ -153,9 +202,11 @@ for i in range(runs):
         
         # print("--------------------")
         # print("Gripper pose: ", gripper_pos)
-        # print("Action taken: ", action)
-
-        obs, reward, terminate, _ = env.step(action)
+        print("Action taken: ", action)
+        try:
+            obs, reward, terminate, _ = env.step(action)
+        except:
+            continue
         
         if terminate:
             reach_goal[i] = True
@@ -173,6 +224,10 @@ for i in range(runs):
         # print("--------------------")
 
         env.render()  # Note: rendering increases step time.
+    
+        # if i == 0:
+        #     visualise_policy(policy_pcs, policy_actions)
+        
 
 
 accuracy = reach_goal.sum() / runs
