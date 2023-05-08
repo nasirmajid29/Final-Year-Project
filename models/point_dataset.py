@@ -14,6 +14,7 @@ import torch
 from torch import Tensor
 
 from torch_geometric.data import Data, Dataset
+from torch_geometric.nn import fps
 
 import open3d as o3d
    
@@ -136,8 +137,24 @@ class PointDataset(Dataset):
                   
                   # data = Data(x = point_cloud, y = action)
                   # data.pos = point_cloud[:, :3]
+
+                  normalise = False # True
+                  unnormalise = False # True
                   
-                  downsample = True
+                  if normalise:
+                        print("hi")
+                        max = 0.05
+                        min = -0.05
+
+                        range = max - min
+
+                        action[0] = 2((action[0] - min) / range) - 1
+                        action[1] = 2((action[1] - min) / range) - 1
+                        action[2] = 2((action[2] - min) / range) - 1
+
+                  # if unnormalise:
+
+                  downsample = False #True
                   if downsample:
                         
                         o3d_pc = o3d.geometry.PointCloud()
@@ -147,6 +164,11 @@ class PointDataset(Dataset):
                         downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
                         
                         point_cloud = torch.tensor(downsampled_o3d_pc.points)
+                  
+                  fixed_sample = False
+                  # fixed point sampling
+                  if fixed_sample:
+                        point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:50]]
                   
                   data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3])
 
@@ -161,6 +183,8 @@ class PointDataset(Dataset):
 
             if self.transform is not None:
                   data_list = [self.transform(d) for d in data_list] 
+            
+
 
 
             num_elems = len(data_list)
