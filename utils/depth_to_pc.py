@@ -152,7 +152,7 @@ def depth_to_pc(obs_config, task_name):
     # lab path "/vol/bitbucket/nm219/Demos"
     # amount -1
     
-    demos = get_stored_demos(-1, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=0)
+    demos = get_stored_demos(-1, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=90)
     return demos
 
 def transform_between_frames(frame1, frame2):
@@ -287,7 +287,8 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "pick_and_lift_200eps"
+demo_folder = "reach_target_10eps"
+print(demo_folder)
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
 
@@ -348,7 +349,7 @@ for i in range(len(demos)):
     wrist_colour_pc_world = np.concatenate((wrist_pc_world, wrist_rgb), axis=2).reshape(-1,6)
     oh_colour_pc_world = np.concatenate((oh_pc_world, oh_rgb), axis=2).reshape(-1,6)
 
-    mask_robot = True
+    mask_robot = True #False #True
     # 165 low limit
     maskNum = 213
     if mask_robot:
@@ -361,11 +362,11 @@ for i in range(len(demos)):
 
     full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
 
-    full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
+    full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.755)]
 
     red_ball_only = False
     box_only = False
-    yellow_cube_only = True
+    yellow_cube_only = False
     charger_only = False
     scales_only = False
 
@@ -385,9 +386,9 @@ for i in range(len(demos)):
     if scales_only:
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] < 160) & (full_colour_pc_world[:,4] < 150) & (full_colour_pc_world[:,5] < 150)] #& (full_colour_pc_world[:,4] < 135) & (full_colour_pc_world[:,5] > 45)]
 
-    # if i == 0:
-    #     # visualise_pc_rgb(oh_colour_pc_world)
-    #     visualise_pc_rgb(full_colour_pc_world)
+    if i == 0:
+        # visualise_pc_rgb(oh_colour_pc_world)
+        visualise_pc_rgb(full_colour_pc_world)
 
 
     all_gripper_frames = []
@@ -445,7 +446,8 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
-torch.save(full_dataset, '/vol/bitbucket/nm219/data/pick_and_lift_200eps.pt')
+# torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_64size.pt')
+
 
 #/vol/bitbucket/nm219/data/
 # print(len(dataset))
