@@ -25,3 +25,13 @@ def visualise_pc_rgb(point_cloud):
     plotter = pyvista.Plotter()
     plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
     plotter.show()
+
+
+def visualise_pc_rgb_many(point_cloud_list):
+
+    plotter = pyvista.Plotter()
+    for point_cloud in point_cloud_list:
+    
+        points, colours = np.hsplit(point_cloud, 2)
+        plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+    plotter.show()

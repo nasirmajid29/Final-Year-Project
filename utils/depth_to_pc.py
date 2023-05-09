@@ -10,7 +10,7 @@ from rlbench.utils import get_stored_demos, ObservationConfig, _resize_if_needed
 from rlbench.backend.utils import image_to_float_array, rgb_handles_to_mask
 from pyrep.objects import VisionSensor
 
-from visualise import visualise_pc, visualise_pc_rgb
+from visualise import visualise_pc, visualise_pc_rgb, visualise_pc_rgb_many
 
 # def rgb_depth_to_pc(colour_path, depth_path):
 #     depth = o3d.io.read_image(depth_path)
@@ -364,7 +364,7 @@ for i in range(len(demos)):
 
     full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.755)]
 
-    red_ball_only = False
+    red_ball_only = True
     box_only = False
     yellow_cube_only = False
     charger_only = False
@@ -390,6 +390,7 @@ for i in range(len(demos)):
         # visualise_pc_rgb(oh_colour_pc_world)
         visualise_pc_rgb(full_colour_pc_world)
 
+    gripper_pcs = []
 
     all_gripper_frames = []
     all_gripper_pc = []
@@ -407,7 +408,11 @@ for i in range(len(demos)):
         full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
-
+        if i == 0:
+            gripper_pcs.append(full_colour_pc_gripper)
+            if j == len(demos[i]._observations)-1:
+                visualise_pc_rgb_many(gripper_pcs)
+        
         all_gripper_frames.append(gripper_frame)
         all_gripper_pc.append(full_colour_pc_gripper)
         all_gripper_states.append(gripper_open)
