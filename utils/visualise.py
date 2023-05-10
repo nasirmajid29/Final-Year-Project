@@ -52,6 +52,31 @@ def visualise_actions(actions):
     centres = [0,0,0] + centres[:-1]
     
 
-    plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]), line_width = 5)
+    plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]))
+    plotter.add_axes_at_origin()
+    plotter.show()
+
+
+def visualise_over_time(point_cloud_list, actions):
+
+    plotter = pyvista.Plotter()
+    actions_list = []
+
+    for point_cloud in point_cloud_list:
+    
+        points, colours = np.hsplit(point_cloud, 2)
+        plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+
+    for action in actions:
+    
+        action_translate = action[:3, 3].reshape(-1)
+        actions_list.append(action_translate)
+
+    centres = np.cumsum(actions_list, axis=0)
+    centres = [0,0,0] + centres[:-1]    
+
+
+    plotter.add_points(centres, opacity=1, point_size=4, render_points_as_spheres=True)
+    plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]))
     plotter.add_axes_at_origin()
     plotter.show()
