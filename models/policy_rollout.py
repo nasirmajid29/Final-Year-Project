@@ -184,7 +184,7 @@ for i in range(runs):
         if unnormalise:
 
             max_x = 0.01
-            min_x = 0.01
+            min_x = -0.01
             range_x = max_x - min_x
             
             max_y = 0.02
@@ -195,9 +195,9 @@ for i in range(runs):
             min_z = -0.005
             range_z = max_z - min_z
 
-            action[0][0] = (range_x * (action[0][0] + 1)/2) + min_x    
-            action[0][1] = (range_y * (action[0][1] + 1)/2) + min_y    
-            action[0][2] = (range_z * (action[0][2] + 1)/2) + min_z       
+            action[0] = (range_x * (action[0] + 1)/2) + min_x    
+            action[1] = (range_y * (action[1] + 1)/2) + min_y    
+            action[2] = (range_z * (action[2] + 1)/2) + min_z       
         
         policy_actions.append(action[:3])
         
