@@ -138,41 +138,52 @@ class PointDataset(Dataset):
                   # data = Data(x = point_cloud, y = action)
                   # data.pos = point_cloud[:, :3]
 
-                  normalise = True # True
+                  normalise = False # True
                   unnormalise = False # True
                   
+                  max_x = 0.01
+                  min_x = 0.01
+                  range_x = max_x - min_x
+                  
+                  max_y = 0.02
+                  min_y = -0.02
+                  range_y = max_y - min_y
+                  
+                  max_z = 0.025
+                  min_z = -0.005
+                  range_z = max_z - min_z
                   if normalise:
-                        maximum = 0.05
-                        minimum = -0.05
+    
 
-                        range = maximum - minimum
-
-                        action[0][0] = 2*((action[0][0] - minimum) / range) - 1
-                        action[0][1] = 2*((action[0][1] - minimum) / range) - 1
-                        action[0][2] = 2*((action[0][2] - minimum) / range) - 1
+                        action[0][0] = 2*((action[0][0] - min_x) / range_x) - 1
+                        action[0][1] = 2*((action[0][1] - min_y) / range_y) - 1
+                        action[0][2] = 2*((action[0][2] - min_z) / range_z) - 1
 
                   if unnormalise:
 
-                        maximum = 0.05
-                        minimum = -0.05
-
-                        range = maximum - minimum
-
-                        action[0][0] = (range * (action[0][0] + 1)/2) + minimum    
-                        action[0][1] = (range * (action[0][1] + 1)/2) + minimum    
-                        action[0][2] = (range * (action[0][2] + 1)/2) + minimum    
+                        action[0][0] = (range_x * (action[0][0] + 1)/2) + min_x    
+                        action[0][1] = (range_y * (action[0][1] + 1)/2) + min_y    
+                        action[0][2] = (range_z * (action[0][2] + 1)/2) + min_z    
 
 
-                  downsample = False #True
+                  downsample = True
                   if downsample:
                         
+                        print("Point cloud before: ", point_cloud.shape)
                         o3d_pc = o3d.geometry.PointCloud()
-                        o3d_pc.points = o3d.utility.Vector3dVector(point_cloud.numpy())
+                        o3d_pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3].numpy())
+                        o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
+                        
                   
-                        voxel_size = 0.1  # 0.5 0.25 0.1 
+                        voxel_size = 0.1  # 0.1 0.05 0.025 0.01 0.005 
                         downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
                         
-                        point_cloud = torch.tensor(downsampled_o3d_pc.points)
+                        new_points = torch.tensor(downsampled_o3d_pc.points)
+                        new_colours = torch.tensor(downsampled_o3d_pc.colors)
+                        
+                        point_cloud = torch.cat((new_points, new_colours), dim=1)
+                        
+                        print("Point cloud after: ", point_cloud.shape)
                   
                   fixed_sample = False
                   # fixed point sampling
