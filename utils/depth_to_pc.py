@@ -10,7 +10,7 @@ from rlbench.utils import get_stored_demos, ObservationConfig, _resize_if_needed
 from rlbench.backend.utils import image_to_float_array, rgb_handles_to_mask
 from pyrep.objects import VisionSensor
 
-from visualise import visualise_pc, visualise_pc_rgb, visualise_pc_rgb_many, visualise_actions, visualise_over_time
+from visualise import visualise_pc, visualise_pc_rgb, visualise_pc_rgb_many, visualise_actions, visualise_over_time, fake_visualise_pc_rgb
 
 # def rgb_depth_to_pc(colour_path, depth_path):
 #     depth = o3d.io.read_image(depth_path)
@@ -387,8 +387,8 @@ for i in range(len(demos)):
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] < 160) & (full_colour_pc_world[:,4] < 150) & (full_colour_pc_world[:,5] < 150)] #& (full_colour_pc_world[:,4] < 135) & (full_colour_pc_world[:,5] > 45)]
 
     if i == 0:
-        # visualise_pc_rgb(oh_colour_pc_world)
-        visualise_pc_rgb(full_colour_pc_world)
+        # visualise_pc_rgb(full_colour_pc_world)
+        fake_visualise_pc_rgb(full_colour_pc_world)
 
     gripper_pcs = []
 
