@@ -12,6 +12,8 @@ from pyrep.objects import VisionSensor
 
 from visualise import visualise_pc, visualise_pc_rgb, visualise_pc_rgb_many, visualise_actions, visualise_over_time, fake_visualise_pc_rgb
 
+from scipy.spatial.transform import Rotation as R
+
 # def rgb_depth_to_pc(colour_path, depth_path):
 #     depth = o3d.io.read_image(depth_path)
 #     colour = o3d.io.read_image(colour_path)
@@ -152,7 +154,7 @@ def depth_to_pc(obs_config, task_name):
     # lab path "/vol/bitbucket/nm219/Demos"
     # amount -1
     
-    demos = get_stored_demos(1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=11)
+    demos = get_stored_demos(-1, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=11)
     return demos
 
 def transform_between_frames(frame1, frame2):
@@ -183,32 +185,35 @@ def quaternion_rotation_matrix(quaternion):
             This rotation matrix converts a point in the local reference 
             frame to a point in the global reference frame.
     """
-    # Extract the values from Q
-    q0 = quaternion[0]
-    q1 = quaternion[1]
-    q2 = quaternion[2]
-    q3 = quaternion[3]
+    # # Extract the values from Q
+    # q0 = quaternion[0]
+    # q1 = quaternion[1]
+    # q2 = quaternion[2]
+    # q3 = quaternion[3]
 
-    # First row of the rotation matrix
-    r00 = 2 * (q0 * q0 + q1 * q1) - 1
-    r01 = 2 * (q1 * q2 - q0 * q3)
-    r02 = 2 * (q1 * q3 + q0 * q2)
+    # # First row of the rotation matrix
+    # r00 = 2 * (q0 * q0 + q1 * q1) - 1
+    # r01 = 2 * (q1 * q2 - q0 * q3)
+    # r02 = 2 * (q1 * q3 + q0 * q2)
     
-    # Second row of the rotation matrix
-    r10 = 2 * (q1 * q2 + q0 * q3)
-    r11 = 2 * (q0 * q0 + q2 * q2) - 1
-    r12 = 2 * (q2 * q3 - q0 * q1)
+    # # Second row of the rotation matrix
+    # r10 = 2 * (q1 * q2 + q0 * q3)
+    # r11 = 2 * (q0 * q0 + q2 * q2) - 1
+    # r12 = 2 * (q2 * q3 - q0 * q1)
     
-    # Third row of the rotation matrix
-    r20 = 2 * (q1 * q3 - q0 * q2)
-    r21 = 2 * (q2 * q3 + q0 * q1)
-    r22 = 2 * (q0 * q0 + q3 * q3) - 1
+    # # Third row of the rotation matrix
+    # r20 = 2 * (q1 * q3 - q0 * q2)
+    # r21 = 2 * (q2 * q3 + q0 * q1)
+    # r22 = 2 * (q0 * q0 + q3 * q3) - 1
     
-    # 3x3 rotation matrix
-    rot_matrix = np.array([[r00, r01, r02],
-                            [r10, r11, r12],
-                            [r20, r21, r22]])
+    # # 3x3 rotation matrix
+    # rot_matrix = np.array([[r00, r01, r02],
+    #                         [r10, r11, r12],
+    #                         [r20, r21, r22]])
+    
 
+    r = R.from_quat(quaternion)
+    rot_matrix = r.as_matrix()
     return rot_matrix
 
 def create_transform(translation, rotation):
@@ -287,7 +292,7 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "reach_target"
+demo_folder = "reach_target_10eps"
 print(demo_folder)
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
@@ -386,9 +391,9 @@ for i in range(len(demos)):
     if scales_only:
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] < 160) & (full_colour_pc_world[:,4] < 150) & (full_colour_pc_world[:,5] < 150)] #& (full_colour_pc_world[:,4] < 135) & (full_colour_pc_world[:,5] > 45)]
 
-    if i == 0:
-        # visualise_pc_rgb(full_colour_pc_world)
-        fake_visualise_pc_rgb(full_colour_pc_world)
+    # if i == 0:
+    #     # visualise_pc_rgb(full_colour_pc_world)
+    #     fake_visualise_pc_rgb(full_colour_pc_world)
 
     gripper_pcs = []
 
@@ -408,10 +413,10 @@ for i in range(len(demos)):
         full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
-        if i == 0:
-            gripper_pcs.append(full_colour_pc_gripper)
-            if j == len(demos[i]._observations)-1:
-                visualise_pc_rgb_many(gripper_pcs)
+        # if i == 0:
+        #     gripper_pcs.append(full_colour_pc_gripper)
+        #     if j == len(demos[i]._observations)-1:
+        #         visualise_pc_rgb_many(gripper_pcs)
         
         all_gripper_frames.append(gripper_frame)
         all_gripper_pc.append(full_colour_pc_gripper)
@@ -428,21 +433,45 @@ for i in range(len(demos)):
         next_gripper_state = all_gripper_states[index+1]
         action = transform_between_frames(frame, next_frame)
         
-        if not next_gripper_state:
-            action[3,0] = 1
+        # if not next_gripper_state:
+        #     action[3,0] = 1
         all_actions.append(action)
 
     all_actions.append(np.zeros((4,4)))
+    
+    # subsample_size = 5
+    # subsampled_gripper_pc = []
+    # subsampled_actions = []
+    # for index in range(0, len(all_gripper_frames), subsample_size):
+        
+    #     frame = all_gripper_frames[index]
+    #     subsampled_gripper_pc.append(frame)
+    
+    #     if index >= len(all_gripper_frames)-subsample_size:
+    #         continue
 
-    if i == 0:
-        visualise_actions(all_actions)
-        visualise_over_time(gripper_pcs, all_actions)
+    #     next_frame = all_gripper_frames[index+subsample_size]
+    #     next_gripper_state = all_gripper_states[index+subsample_size]
+    #     action = transform_between_frames(frame, next_frame)
+        
+    #     # if not next_gripper_state:
+    #     #     action[3,0] = 1
+    #     subsampled_actions.append(action)
+
+    # subsampled_actions.append(np.zeros((4,4)))
+
+    # if i == 0:
+    #     visualise_actions(all_actions)
+    #     visualise_over_time(gripper_pcs, all_actions)
 
 # print("Action size is:", np.array(all_actions).shape)
 # print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
 
     pc_with_actions = list(zip(all_gripper_pc, all_actions))
     dataset = np.array(pc_with_actions, dtype=object)
+    
+    # subsampled_pc_with_actions = list(zip(subsampled_gripper_pc, subsampled_actions))
+    # sbsampled_dataset = np.array(subsampled_pc_with_actions, dtype=object)
 
     # print(np.array(dataset, dtype=object).shape)
     # print(np.array(dataset)[0])
@@ -455,7 +484,7 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
-# torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_64size.pt')
+# torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_200eps.pt')
 
 
 #/vol/bitbucket/nm219/data/
