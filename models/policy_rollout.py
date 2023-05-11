@@ -9,7 +9,7 @@ from GPUtil import showUtilization as gpu_usage
 
 import torch_geometric.transforms as T
 import pyvista
-
+import open3d as o3d
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -71,6 +71,8 @@ def visualise_policy(point_clouds, actions):
     poly = pyvista.lines_from_points(gripper_points)
    
     plotter.add_mesh(poly, color='yellow', line_width=5)
+    
+    # plotter.add_axes_at_origin()
   
     plotter.screenshot("policy.png")
 
@@ -90,7 +92,7 @@ gpu_usage()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_target_10eps_pnpp_actionnormalise.pt", map_location=device) #torch.device('cpu'))
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_50eps_pnpp_homo.pt", map_location=device) #torch.device('cpu'))
 model.eval()
 
 env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
@@ -140,7 +142,7 @@ for i in range(runs):
             
 
         full_colour_pc_world = np.concatenate((ls_colour_pc_world, rs_colour_pc_world, front_colour_pc_world, wrist_colour_pc_world, oh_colour_pc_world))
-        full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.5)]
+        full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.755)]
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
 
 
@@ -154,6 +156,22 @@ for i in range(runs):
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
         full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
+        
+        downsample = True
+        if downsample:
+            
+            o3d_pc = o3d.geometry.PointCloud()
+            o3d_pc.points = o3d.utility.Vector3dVector(full_colour_pc_gripper[:, :3].numpy())
+            o3d_pc.colors = o3d.utility.Vector3dVector(full_colour_pc_gripper[:, 3:].numpy())
+            
+        
+            voxel_size = 0.01  # 0.1 0.05 0.025 0.01 0.005 
+            downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
+            
+            new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
+            new_colours = torch.tensor(downsampled_o3d_pc.colors, dtype=torch.float32)
+            
+            full_colour_pc_gripper = torch.cat((new_points, new_colours), dim=1)        
         
         fixed_sample = False
         if fixed_sample:
@@ -232,8 +250,8 @@ for i in range(runs):
 
         env.render()  # Note: rendering increases step time.
     
-        # if i == 0:
-        #     visualise_policy(policy_pcs, policy_actions)
+        if i == 0:
+            visualise_policy(policy_pcs, policy_actions)
         
 
 

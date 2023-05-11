@@ -138,11 +138,11 @@ class PointDataset(Dataset):
                   # data = Data(x = point_cloud, y = action)
                   # data.pos = point_cloud[:, :3]
 
-                  normalise = False # True
+                  normalise = True # True
                   unnormalise = False # True
                   
                   max_x = 0.01
-                  min_x = 0.01
+                  min_x = -0.01
                   range_x = max_x - min_x
                   
                   max_y = 0.02
@@ -175,11 +175,11 @@ class PointDataset(Dataset):
                         o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
                         
                   
-                        voxel_size = 0.1  # 0.1 0.05 0.025 0.01 0.005 
+                        voxel_size = 0.01  # 0.1 0.05 0.025 0.01 0.005 
                         downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
                         
-                        new_points = torch.tensor(downsampled_o3d_pc.points)
-                        new_colours = torch.tensor(downsampled_o3d_pc.colors)
+                        new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
+                        new_colours = torch.tensor(downsampled_o3d_pc.colors, dtype=torch.float32)
                         
                         point_cloud = torch.cat((new_points, new_colours), dim=1)
                         
