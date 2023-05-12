@@ -59,7 +59,7 @@ def visualise_actions(actions):
 
 def visualise_over_time(point_cloud_list, actions):
 
-    plotter = pyvista.Plotter()
+    plotter = pyvista.Plotter(off_screen=True)
     actions_list = []
 
     for point_cloud in point_cloud_list:
@@ -79,7 +79,8 @@ def visualise_over_time(point_cloud_list, actions):
     plotter.add_points(centres, opacity=1, point_size=4, render_points_as_spheres=True)
     plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]))
     plotter.add_axes_at_origin()
-    plotter.show()
+    plotter.screenshot("over_time.png")
+    # plotter.show()
     
 
 def fake_visualise_pc_rgb(point_cloud):

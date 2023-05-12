@@ -292,7 +292,7 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "reach_target"
+demo_folder = "reach_target_200eps"
 print(demo_folder)
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
@@ -416,11 +416,10 @@ for i in range(len(demos)):
         full_pc_gripper = transform_point_cloud(gripper_world_frame, full_pc_world_points)
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
-        if i == 0:
-            gripper_poses.append(gripper_coord)
-            gripper_pcs.append(full_colour_pc_gripper)
-        #     if j == len(demos[i]._observations)-1:
-        #         visualise_pc_rgb_many(gripper_pcs)
+        # if i == 0:
+        #     gripper_pcs.append(full_colour_pc_gripper)
+            # if j == len(demos[i]._observations)-1:
+            #     visualise_pc_rgb_many(gripper_pcs)
         
         all_gripper_frames.append(gripper_world_frame)
         all_gripper_pc.append(full_colour_pc_gripper)
@@ -464,13 +463,13 @@ for i in range(len(demos)):
 
     # subsampled_actions.append(np.zeros((4,4)))
 
-    if i == 0:
-        # visualise_actions(all_actions)
-        visualise_over_time(gripper_pcs, all_actions)
+    # if i == 0:
+    #     # visualise_actions(all_actions)
+    #     visualise_over_time(gripper_pcs, all_actions)
         
-        gripper_pcs.append(full_colour_pc_world)
+    #     gripper_pcs.append(full_colour_pc_world)
 
-        visualise_world(gripper_pcs, gripper_poses, all_actions)
+    #     visualise_world(gripper_pcs, gripper_poses, all_actions)
 
 # print("Action size is:", np.array(all_actions).shape)
 # print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
@@ -492,7 +491,7 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
-# torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_200eps.pt')
+torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_200eps.pt')
 
 
 #/vol/bitbucket/nm219/data/
