@@ -1,7 +1,7 @@
 
 import numpy as np
 import pyvista
-pyvista.start_xvfb()
+# pyvista.start_xvfb()
 
 
 def visualise_pc(point_cloud):
@@ -112,3 +112,32 @@ def visualise_policy(point_clouds, actions):
     plotter.add_mesh(polydata, color='yellow', point_size=20)
 
     plotter.screenshot("policy.png")
+
+def visualise_world(world, poses, actions):
+
+    plotter = pyvista.Plotter()
+    actions_list = []
+    
+    for point_cloud in world:
+    
+        points, colours = np.hsplit(point_cloud, 2)
+        plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+
+    for pose in poses:
+    
+        plotter.add_points(pose, opacity=1, point_size=4, render_points_as_spheres=True)
+
+    for action in actions:
+    
+        action_translate = action[:3, 3].reshape(-1)
+        actions_list.append(action_translate)
+
+    centres = np.cumsum(actions_list, axis=0)
+    centres = [0,0,0] + centres[:-1]    
+
+
+    plotter.add_points(centres, opacity=1, point_size=4, render_points_as_spheres=True)
+    plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]))
+        
+    plotter.add_axes_at_origin()
+    plotter.show()

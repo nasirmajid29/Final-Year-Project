@@ -149,10 +149,12 @@ for i in range(runs):
         gripper_pos = obs["gripper_pose"]
         gripper_coord, gripper_rotation_quat = gripper_pos[:3], gripper_pos[3:]
         gripper_rotation_matrix = quaternion_rotation_matrix(gripper_rotation_quat)
-        gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+        world_gripper_frame = create_transform(gripper_coord, gripper_rotation_matrix)
+
+        gripper_world_frame = np.linalg.inv(world_gripper_frame)
 
         full_pc_world_points, full_pc_world_colours = np.hsplit(full_colour_pc_world, 2)
-        full_pc_gripper = transform_point_cloud(gripper_frame, full_pc_world_points)
+        full_pc_gripper = transform_point_cloud(gripper_world_frame, full_pc_world_points)
         full_colour_pc_gripper = np.concatenate((full_pc_gripper, full_pc_world_colours), axis=1)
 
         full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
