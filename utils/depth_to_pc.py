@@ -154,12 +154,12 @@ def depth_to_pc(obs_config, task_name):
     # lab path "/vol/bitbucket/nm219/Demos"
     # amount -1
     
-    demos = get_stored_demos(1, False, "/home/nasir/Desktop/Demos", 0, task_name, obs_config, random_selection=False, from_episode_number=9)
+    demos = get_stored_demos(-1, False, "/vol/bitbucket/nm219/Demos", 0, task_name, obs_config, random_selection=False)#, from_episode_number=9)
     return demos
 
 def transform_between_frames(frame1, frame2):
-    inverse = np.linalg.inv(frame2)
-    return np.matmul(frame1, inverse)
+    inverse = np.linalg.inv(frame1)
+    return np.matmul(inverse, frame2)
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -292,7 +292,7 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "reach_target_200eps"
+demo_folder = "reach_target_500eps"
 print(demo_folder)
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
@@ -418,10 +418,11 @@ for i in range(len(demos)):
 
         # if i == 0:
         #     gripper_pcs.append(full_colour_pc_gripper)
+        #     gripper_poses.append(gripper_coord)
             # if j == len(demos[i]._observations)-1:
             #     visualise_pc_rgb_many(gripper_pcs)
         
-        all_gripper_frames.append(gripper_world_frame)
+        all_gripper_frames.append(world_gripper_frame)
         all_gripper_pc.append(full_colour_pc_gripper)
         all_gripper_states.append(gripper_open)
 
@@ -434,7 +435,7 @@ for i in range(len(demos)):
 
         next_frame = all_gripper_frames[index+1]
         next_gripper_state = all_gripper_states[index+1]
-        action = transform_between_frames(next_frame, frame)
+        action = transform_between_frames(frame, next_frame)
         
         # if not next_gripper_state:
         #     action[3,0] = 1
@@ -469,7 +470,7 @@ for i in range(len(demos)):
         
     #     gripper_pcs.append(full_colour_pc_world)
 
-    #     visualise_world(gripper_pcs, gripper_poses, all_actions)
+        # visualise_world(gripper_pcs, gripper_poses, all_actions)
 
 # print("Action size is:", np.array(all_actions).shape)
 # print("Number of gripper pointclouds is:", np.array(all_gripper_pc).shape)
@@ -491,7 +492,7 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
-torch.save(full_dataset, '/vol/bitbucket/nm219/data/reach_target_200eps.pt')
+torch.save(full_dataset, '/vol/bitbucket/nm219/data/'+demo_folder+'.pt')
 
 
 #/vol/bitbucket/nm219/data/

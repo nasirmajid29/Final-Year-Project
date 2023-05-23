@@ -175,7 +175,7 @@ class PointDataset(Dataset):
                         o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
                         
                   
-                        voxel_size = 0.01  # 0.1 0.05 0.025 0.01 0.005 
+                        voxel_size = 0.005  # 0.1 0.05 0.025 0.01 0.005 
                         downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
                         
                         new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
@@ -188,9 +188,14 @@ class PointDataset(Dataset):
                   fixed_sample = False
                   # fixed point sampling
                   if fixed_sample:
-                        point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:50]]
+                        point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:2]]
+                        
+                  pc = o3d.geometry.PointCloud()
+                  pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
+                  pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+                  normals = torch.Tensor(pc.normals)                
                   
-                  data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3])
+                  data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3], normal = normals)
 
                   # print(data.x.size())
                   # print(data.y.size())

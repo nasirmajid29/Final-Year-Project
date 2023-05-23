@@ -8,6 +8,11 @@ import torch_geometric.transforms as T
 from torch_geometric.datasets import ModelNet
 from torch_geometric.loader import DataLoader
 from torch_geometric.nn import MLP, PointConv, fps, global_max_pool, radius
+from torch.nn import Sequential as Seq, Linear as Lin, ReLU
+from torch.optim.lr_scheduler import StepLR
+
+
+
 
 from GPUtil import showUtilization as gpu_usage
 import matplotlib.pyplot as plt
@@ -21,7 +26,7 @@ import os
 
 
 data = 'reach_target_10eps'
-wandb.init(project="Rollout", entity="final-year-project", name=data)
+wandb.init(project="Correct", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -93,34 +98,104 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        # self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
+        # self.sa1_module = SAModule(0.4, 0.2, MLP([6, 32, 64]))
+        # self.sa2_module = SAModule(0.25, 0.5, MLP([64 + 3, 128, 256]))
+        # self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
+
+        # self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
+        
+        # self.sa1_module = SAModule(0.1, 0.05, MLP([6, 32, 64]))
         # self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
         # self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
 
         # self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
         
-        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 24]))
-        # self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
-        self.sa3_module = GlobalSAModule(MLP([24 + 3, 64]))
+        # self.sa1_module = SAModule(0.1, 0.05, MLP([6, 16, 32])) #SAModule(0.1, 0.05, MLP([9, 16, 32]))
+        # # self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
+        # self.sa3_module = GlobalSAModule(MLP([32 + 3, 64]))
 
-        self.mlp = MLP([64, 32, 3], dropout=0.5, norm=None)
+        # self.mlp = MLP([64, 32, 3], dropout=0.1, norm=None)
+        
+        
+        # self.sa1_module = SAModule(0.1, 0.05, MLP([6, 16, 32]))
+        # self.sa2_module = SAModule(0.05, 0.1, MLP([32 + 3, 64]))
+        
+        # self.sa1_module = SAModule(0.4, 0.05, MLP([6, 16, 24, 32]))
+        # # self.sa2_module = SAModule(0.2, 0.05, MLP([32 + 3, 64]))
+        # self.sa3_module = GlobalSAModule(MLP([32 + 3, 64]))
+
+        # self.mlp = MLP([64, 32, 3], dropout=0.5, norm=None)
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 64, 64, 128]))
+        # self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 128, 256]))
+        # self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
+
+        # self.mlp = MLP([1024, 512, 256, 3], dropout=0.5, norm=None)
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16]))
+        # self.sa2_module = SAModule(0.25, 0.4, MLP([16 + 3, 32]))
+        # self.sa3_module = GlobalSAModule(MLP([32 + 3, 64]))
+
+        # self.mlp = MLP([64, 32, 3], dropout=0.5, norm=None)
+        
+        
+        self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32]))
+        self.sa2_module = SAModule(0.25, 0.4, MLP([32 + 3, 64, 128]))
+        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512]))
+
+        self.mlp = MLP([512, 128, 32, 3], dropout=0.0 , norm=None) #0.5
+        
+        # self.mlp = MLP([512, 256, 128, 32, 3], dropout=0.0 , norm=None) #0.5
+        
+        # self.sa1_module = SAModule(0.09, 0.191, MLP([6, 8, 16, 32]))
+        # self.sa2_module = SAModule(0.365, 0.062, MLP([32 + 3, 64, 128]))
+        # self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512]))
+
+        # self.mlp = MLP([512, 128, 64, 32, 3], dropout=0.636, norm=None)
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16]))
+        # self.sa2_module = SAModule(0.25, 0.4, MLP([16 + 3, 32]))
+        # self.sa3_module = SAModule(0.125, 0.8, MLP([32 + 3, 64]))
+        # self.sa4_module = GlobalSAModule(MLP([64 + 3, 128]))
+
+        # self.mlp = MLP([128, 64, 3], dropout=0.5, norm=None)
+        
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 32, 64, 64, 128]))
+        # self.sa2_module = SAModule(0.25, 0.4, MLP([128 + 3, 128, 256]))
+        # self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512, 1024]))
+
+        # self.mlp = MLP([1024, 512, 256, 128, 64, 3], dropout=0.5, norm=None)
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 8, 16, 32, 64]))
+        # self.sa3_module = GlobalSAModule(MLP([64+3, 128, 256, 512]))
+
+        # self.mlp = MLP([512, 256, 128, 64, 32, 16, 3], dropout=0.5, norm=None)
+    
 
     def forward(self, data):
         # print(data.dtype)
         sa0_out = (data.x, data.pos, data.batch)
-        # print(np.array(data.batch).shape)
+        # # print(np.array(data.batch).shape)
+        sa1_out = self.sa1_module(*sa0_out)
+        sa2_out = self.sa2_module(*sa1_out)
+        sa3_out = self.sa3_module(*sa2_out)
+        x, pos, batch = sa3_out
+        
         # sa1_out = self.sa1_module(*sa0_out)
         # sa2_out = self.sa2_module(*sa1_out)
         # sa3_out = self.sa3_module(*sa2_out)
+        # sa4_out = self.sa4_module(*sa3_out)
+        # x, pos, batch = sa4_out
+        
+        # sa1_out = self.sa1_module(*sa0_out)
+        # sa3_out = self.sa3_module(*sa1_out)
         # x, pos, batch = sa3_out
         
-        sa1_out = self.sa1_module(*sa0_out)
-        sa3_out = self.sa3_module(*sa1_out)
-        x, pos, batch = sa3_out
-
         # print(x.dtype)
 
         return self.mlp(x)
+      
 
 
 def train(epoch):
@@ -151,7 +226,7 @@ def train(epoch):
 
     wandb.log({"training loss": avg_loss})
     wandb.watch(model)
-        
+    return avg_loss    
 
 def test(loader):
     model.eval()
@@ -183,12 +258,13 @@ if __name__ == '__main__':
     # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
     #                 'data/ModelNet10')
 
-    pre_transform = T.NormalizeScale()
-    # transform = T.SamplePoints(64)
+    pre_transform = None # T.NormalizeScale()
+    transform = None
+    # transform = T.SamplePoints(10)
     
-    point_cloud_data_train = PointDataset(data_loc, "data.pt", True, pre_transform)
+    point_cloud_data_train = PointDataset(data_loc, "data.pt", True, pre_transform, transform)
     
-    point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
+    point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform, transform)
     
     print(data)
     print(len(point_cloud_data_train))
@@ -204,8 +280,8 @@ if __name__ == '__main__':
     #                          num_workers=6)
 
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=16, shuffle=False, num_workers=6)
-    test_loader = DataLoader(point_cloud_data_test, batch_size=16, shuffle=False,num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=64, shuffle=False, num_workers=6) #16
+    test_loader = DataLoader(point_cloud_data_test, batch_size=64, shuffle=False, num_workers=6) #32
     
     # train_x = []
     # train_y = []
@@ -279,30 +355,89 @@ if __name__ == '__main__':
     # plt.savefig('test_z.png')   
     # plt.clf()
     
+    # action_x = []
+    # action_y = []
+    # action_z = []
+    # for data in train_loader:
+    #     for action in data.y:            
+    #         action_x.append(action[0])
+    #         action_y.append(action[1])
+    #         action_z.append(action[2])
+                
+    # # fixed bin size
+    # bins = np.arange(-0.025, 0.025, 0.001) # fixed bin size
 
+    # plt.xlim([-0.025, 0.025])
+    # plt.hist(action_x, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - X action')
+    # plt.xlabel('X values')
+    # plt.ylabel('count')
+    # plt.savefig('action_x.png')
+    # plt.clf()
+    # print("Maximum X value", max(action_x))
+    # print("Minimum X value", min(action_x))
+    
+    # plt.xlim([-0.025, 0.025])
+    # plt.hist(action_y, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - Y action')
+    # plt.xlabel('Y values')
+    # plt.ylabel('count')
+    # plt.savefig('action_y.png')
+    # plt.clf()
+    # print("Maximum Y value", max(action_y))
+    # print("Minimum Y value", min(action_y))
+    
+    # plt.xlim([-0.025, 0.025])
+    # plt.hist(action_z, bins=bins, alpha=1, edgecolor='black', linewidth=1.2)
+    # plt.title('Training data - Z action')
+    # plt.xlabel('Z values')
+    # plt.ylabel('count')
+    # plt.savefig('action_z.png')   
+    # plt.clf()    
+    # print("Maximum Z value", max(action_z))
+    # print("Minimum Z value", min(action_z))
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
+    
+    total_params = sum(p.numel() for p in model.parameters())
+    print("Number of Parameters: ", total_params)
 
     # test_acc, loss = test(test_loader)
     # print(f'Test: {test_acc:.4f}, Loss: {loss:.4f}')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001) #0.001
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005) #0.001 #0.0001 # 0.0005
+    
+    # scheduler = StepLR(optimizer, step_size=10, gamma=0.1)
 
     torch.cuda.empty_cache()
 
     epoch_losses = []
     accuracies = []
-    for epoch in range(30): #30
-        train(epoch)
+    
+    # conv_loss = np.inf
+    # conv = np.inf
+    # epoch = 0
+    for epoch in range(50): #50 #30 15 # 75
+    # while conv_loss > 0.005 and epoch < 100:
+    # while conv > 0 or epoch < 20:
+        train_loss = train(epoch)
         loss = test(test_loader)
         loss = loss.detach().cpu().numpy()
         epoch_losses.append(loss)
         # accuracies.append(test_acc)
+        # scheduler.step()
         print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}')
 
         wandb.log({"validation loss": loss})
         wandb.watch(model)
+        
+        # prev_loss = conv_loss
+        # conv_loss = loss
+        
+        # conv = prev_loss - conv_loss
+        # epoch += 1
+        
 
         # print(loss)
 
@@ -312,4 +447,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-    torch.save(model, data+"_pnpp_smaller.pt")
+        torch.save(model, data+"_pnpp_longertrain.pt")

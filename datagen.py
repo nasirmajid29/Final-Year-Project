@@ -5,6 +5,8 @@ xvfb-run -a -s "-screen 0 1400x900x24" /vol/bitbucket/nm219/fyp/bin/python /home
 
 /vol/bitbucket/nm219/fyp/bin/python /homes/nm219/Final-Year-Project/data_mover.py /vol/bitbucket/nm219/data/<file> 
 
+xvfb-run -a -s "-screen 0 1400x900x24" /vol/bitbucket/nm219/fyp/bin/python  /vol/bitbucket/nm219/RLBench/tools/cinematic_recorder.py --tasks=reach_target
+
 close_box
 pick_and_lift
 plug_charger_in_power_supply

@@ -17,7 +17,6 @@ import wandb
 import pyvista
 import matplotlib.pyplot as plt
 
-
 class SAModule(torch.nn.Module):
     def __init__(self, ratio, r, nn):
         super().__init__()
@@ -57,15 +56,15 @@ class GlobalSAModule(torch.nn.Module):
 
 
 class Net(torch.nn.Module):
-    def __init__(self):
+    def __init__(self, config):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
-        self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
-        self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
+        self.sa1_module = SAModule(config.ratio1, config.radius1, MLP([6, 16]))
+        self.sa2_module = SAModule(config.ratio2, config.radius2, MLP([16 + 3, 32]))
+        self.sa3_module = GlobalSAModule(MLP([32 + 3, 64]))
 
-        self.mlp = MLP([512, 256, 32, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([64, 32, 3], dropout=config.dropout, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
@@ -80,28 +79,33 @@ class Net(torch.nn.Module):
 
         return self.mlp(x)
 
-gpu_usage()
-torch.cuda.empty_cache()
-gpu_usage()
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = Net().to(device)
-
-def test(loader):
-    model.eval()
-
-    for data in loader:
-        data = data.to(device)
-        with torch.no_grad():
-            pred = model(data)
-    return F.mse_loss(pred, data.y)
 
 def train():
-    wandb.init(project="test-project", entity="final-year-project")
+
+    wandb.init(project="Pnpp Sweep", entity="final-year-project")
     print("Config, ", wandb.config)
 
+
+    gpu_usage()
+    torch.cuda.empty_cache()
+    gpu_usage()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = Net(wandb.config).to(device)
+
+    def test(loader):
+        model.eval()
+
+        for data in loader:
+            data = data.to(device)
+            with torch.no_grad():
+                pred = model(data)
+        return F.mse_loss(pred, data.y)
+
+
     data_loc = "/vol/bitbucket/nm219/data/reach_target_10eps"
-    pre_transform = T.NormalizeScale()
+    pre_transform = None # T.NormalizeScale()
     
     point_cloud_data_train = PointDataset(data_loc, "data.pt", True, pre_transform)
     point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
@@ -161,15 +165,30 @@ sweep_config = {
                 "max": 0.01,
                 "min": 0.0001
             },
-            'ratio': {
+            'ratio1': {
                 'distribution': 'uniform',
                 'min': 0.05,
                 'max': 0.5
             },
-            'radius': {
+            'radius1': {
                 'distribution': 'uniform',
                 'min': 0.01,
                 'max': 0.5
+            },
+            'ratio2': {
+                'distribution': 'uniform',
+                'min': 0.05,
+                'max': 0.5
+            },
+            'radius2': {
+                'distribution': 'uniform',
+                'min': 0.01,
+                'max': 0.5
+            },
+            'dropout': {
+                'distribution': 'uniform',
+                'min': 0,
+                'max': 0.7
             }
         }
     }
@@ -177,6 +196,6 @@ sweep_config = {
     # wandb.agent("khptq5vx", function = simple_pointnet_pp.main(), count=1)
 
 # Run the sweep
-# sweep_id = wandb.sweep(sweep_config, project="test-project", entity="final-year-project")
+# sweep_id = wandb.sweep(sweep_config, project="Pnpp Sweep", entity="final-year-project")
 
-wandb.agent("a735kg94", function=train, project="test-project", entity="final-year-project", count=100)
+wandb.agent("uwx7faha", function=train, project="Pnpp Sweep", entity="final-year-project", count=100)
