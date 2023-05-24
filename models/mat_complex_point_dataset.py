@@ -11,54 +11,50 @@ import torch
 from torch_geometric.data import Data, Dataset
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 def rotation_matrix_quaternion(rot_matrix):
-    """
-    Convert a 3x3 rotation matrix to a quaternion.
-    Input
-    :param rot_matrix: A 3x3 element matrix representing the full 3D rotation matrix. 
-                       This rotation matrix converts a point in the local reference 
-                       frame to a point in the global reference frame.
-    Output
-    :return: A 4 element array representing the quaternion (q0,q1,q2,q3)
-    """
+      r = R.from_matrix(rot_matrix)
+      quaternion = r.as_quat()
+      return quaternion
+
     # Extract the values from the rotation matrix
-    r00, r01, r02 = rot_matrix[0]
-    r10, r11, r12 = rot_matrix[1]
-    r20, r21, r22 = rot_matrix[2]
+#     r00, r01, r02 = rot_matrix[0]
+#     r10, r11, r12 = rot_matrix[1]
+#     r20, r21, r22 = rot_matrix[2]
     
-    # Calculate the trace of the rotation matrix
-    trace = r00 + r11 + r22
+#     # Calculate the trace of the rotation matrix
+#     trace = r00 + r11 + r22
     
-    # Calculate the quaternion components based on the trace of the rotation matrix
-    if trace > 0:
-        S = np.sqrt(trace + 1.0) * 2.0
-        q0 = 0.25 * S
-        q1 = (r21 - r12) / S
-        q2 = (r02 - r20) / S
-        q3 = (r10 - r01) / S
-    elif (r00 > r11) and (r00 > r22):
-        S = np.sqrt(1.0 + r00 - r11 - r22) * 2.0
-        q0 = (r21 - r12) / S
-        q1 = 0.25 * S
-        q2 = (r01 + r10) / S
-        q3 = (r02 + r20) / S
-    elif r11 > r22:
-        S = np.sqrt(1.0 + r11 - r00 - r22) * 2.0
-        q0 = (r02 - r20) / S
-        q1 = (r01 + r10) / S
-        q2 = 0.25 * S
-        q3 = (r12 + r21) / S
-    else:
-        S = np.sqrt(1.0 + r22 - r00 - r11) * 2.0
-        q0 = (r10 - r01) / S
-        q1 = (r02 + r20) / S
-        q2 = (r12 + r21) / S
-        q3 = 0.25 * S
+#     # Calculate the quaternion components based on the trace of the rotation matrix
+#     if trace > 0:
+#         S = np.sqrt(trace + 1.0) * 2.0
+#         q0 = 0.25 * S
+#         q1 = (r21 - r12) / S
+#         q2 = (r02 - r20) / S
+#         q3 = (r10 - r01) / S
+#     elif (r00 > r11) and (r00 > r22):
+#         S = np.sqrt(1.0 + r00 - r11 - r22) * 2.0
+#         q0 = (r21 - r12) / S
+#         q1 = 0.25 * S
+#         q2 = (r01 + r10) / S
+#         q3 = (r02 + r20) / S
+#     elif r11 > r22:
+#         S = np.sqrt(1.0 + r11 - r00 - r22) * 2.0
+#         q0 = (r02 - r20) / S
+#         q1 = (r01 + r10) / S
+#         q2 = 0.25 * S
+#         q3 = (r12 + r21) / S
+#     else:
+#         S = np.sqrt(1.0 + r22 - r00 - r11) * 2.0
+#         q0 = (r10 - r01) / S
+#         q1 = (r02 + r20) / S
+#         q2 = (r12 + r21) / S
+#         q3 = 0.25 * S
     
-    # Return the quaternion as a numpy array
-    quaternion = np.array([q0, q1, q2, q3])
-    return quaternion
+#     # Return the quaternion as a numpy array
+#     quaternion = np.array([q0, q1, q2, q3])
+#     return quaternion
 
 
 
@@ -98,13 +94,71 @@ class MatComplexPointDataset(Dataset):
 
                   action_translate = action[:3, 3].view(1,3)
                   matrix = action[:3,:3].view(1,9)
-                  gripper_state = action[3,0]
+                  mat_2_cols = matrix[:6]
+                  gripper_state = action[3,0].reshape(1)
                   
-                  action = np.concatenate((action_translate, matrix, [gripper_state]))
+                  action = np.concatenate((action_translate, mat_2_cols, gripper_state))
                   # print(action.size())
+                  action = action.view(1,10)
                   
-                  data = Data(x = point_cloud, y = action)
-                  data.pos = point_cloud[:, :3]
+                  normalise = True # True
+                  unnormalise = False # True
+                  
+                  max_x = 0.01
+                  min_x = -0.01
+                  range_x = max_x - min_x
+                  
+                  max_y = 0.02
+                  min_y = -0.02
+                  range_y = max_y - min_y
+                  
+                  max_z = 0.025
+                  min_z = -0.005
+                  range_z = max_z - min_z
+                  if normalise:
+    
+
+                        action[0][0] = 2*((action[0][0] - min_x) / range_x) - 1
+                        action[0][1] = 2*((action[0][1] - min_y) / range_y) - 1
+                        action[0][2] = 2*((action[0][2] - min_z) / range_z) - 1
+
+                  if unnormalise:
+
+                        action[0][0] = (range_x * (action[0][0] + 1)/2) + min_x    
+                        action[0][1] = (range_y * (action[0][1] + 1)/2) + min_y    
+                        action[0][2] = (range_z * (action[0][2] + 1)/2) + min_z    
+
+
+                  downsample = True
+                  if downsample:
+                        
+                        print("Point cloud before: ", point_cloud.shape)
+                        o3d_pc = o3d.geometry.PointCloud()
+                        o3d_pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3].numpy())
+                        o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
+                        
+                  
+                        voxel_size = 0.05  # 0.1 0.05 0.025 0.01 0.005 
+                        downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
+                        
+                        new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
+                        new_colours = torch.tensor(downsampled_o3d_pc.colors, dtype=torch.float32)
+                        
+                        point_cloud = torch.cat((new_points, new_colours), dim=1)
+                        
+                        print("Point cloud after: ", point_cloud.shape)
+                  
+                  fixed_sample = False
+                  # fixed point sampling
+                  if fixed_sample:
+                        point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:2]]
+                        
+                  pc = o3d.geometry.PointCloud()
+                  pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
+                  pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+                  normals = torch.Tensor(pc.normals)                
+                  
+                  data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3], normal = normals)
 
                   # print(data.x.size())
                   # print(data.y.size())

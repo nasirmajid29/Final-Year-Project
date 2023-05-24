@@ -3,13 +3,17 @@ import rlbench.gym
 import numpy as np
 
 import torch
-from simple_pointnet_pp import Net, SAModule, GlobalSAModule
+# from simple_pointnet_pp import Net, SAModule, GlobalSAModule
+# from simple_pointnet import Net, GlobalSAModule
+from point_transformer import Net, TransformerBlock, TransitionDown
 from torch_geometric.data import Data, Dataset
 from GPUtil import showUtilization as gpu_usage
 
 import torch_geometric.transforms as T
 import pyvista
 import open3d as o3d
+
+from scipy.spatial.transform import Rotation as R
 
 def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
@@ -25,31 +29,33 @@ def transform_point_cloud(transform, point_cloud)-> np.ndarray:
 
 def quaternion_rotation_matrix(quaternion):
 
-    q0 = quaternion[0]
-    q1 = quaternion[1]
-    q2 = quaternion[2]
-    q3 = quaternion[3]
+    # q0 = quaternion[0]
+    # q1 = quaternion[1]
+    # q2 = quaternion[2]
+    # q3 = quaternion[3]
 
-    # First row of the rotation matrix
-    r00 = 2 * (q0 * q0 + q1 * q1) - 1
-    r01 = 2 * (q1 * q2 - q0 * q3)
-    r02 = 2 * (q1 * q3 + q0 * q2)
+    # # First row of the rotation matrix
+    # r00 = 2 * (q0 * q0 + q1 * q1) - 1
+    # r01 = 2 * (q1 * q2 - q0 * q3)
+    # r02 = 2 * (q1 * q3 + q0 * q2)
     
-    # Second row of the rotation matrix
-    r10 = 2 * (q1 * q2 + q0 * q3)
-    r11 = 2 * (q0 * q0 + q2 * q2) - 1
-    r12 = 2 * (q2 * q3 - q0 * q1)
+    # # Second row of the rotation matrix
+    # r10 = 2 * (q1 * q2 + q0 * q3)
+    # r11 = 2 * (q0 * q0 + q2 * q2) - 1
+    # r12 = 2 * (q2 * q3 - q0 * q1)
     
-    # Third row of the rotation matrix
-    r20 = 2 * (q1 * q3 - q0 * q2)
-    r21 = 2 * (q2 * q3 + q0 * q1)
-    r22 = 2 * (q0 * q0 + q3 * q3) - 1
+    # # Third row of the rotation matrix
+    # r20 = 2 * (q1 * q3 - q0 * q2)
+    # r21 = 2 * (q2 * q3 + q0 * q1)
+    # r22 = 2 * (q0 * q0 + q3 * q3) - 1
     
-    # 3x3 rotation matrix
-    rot_matrix = np.array([[r00, r01, r02],
-                            [r10, r11, r12],
-                            [r20, r21, r22]])
+    # # 3x3 rotation matrix
+    # rot_matrix = np.array([[r00, r01, r02],
+    #                         [r10, r11, r12],
+    #                         [r20, r21, r22]])
 
+    r = R.from_quat(quaternion)
+    rot_matrix = r.as_matrix()
     return rot_matrix
 
 def cumulative_sum(actions):
@@ -74,7 +80,23 @@ def visualise_policy(point_clouds, actions):
     
     # plotter.add_axes_at_origin()
   
-    plotter.screenshot("policy.png")
+    plotter.screenshot("policy_10eps_transformer_1.png")
+    
+def plot_action_seq(world_pc, poses):
+        
+    plotter = pyvista.Plotter(off_screen=True)
+ 
+    points, colours = np.hsplit(world_pc, 2)
+    plotter.add_points(points, opacity=1, point_size=4, render_points_as_spheres=True, scalars=colours.astype(int), rgb=True)
+
+    for pose in poses:
+    
+        plotter.add_points(pose, opacity=1, point_size=4, render_points_as_spheres=True)
+
+        
+    plotter.add_axes_at_origin()
+    plotter.camera.zoom(2.0)
+    plotter.screenshot("policy_10eps_transformer_2.png")
 
 def create_transform(translation, rotation):
     
@@ -90,18 +112,22 @@ torch.cuda.empty_cache()
 gpu_usage()
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = Net().to(device)
+# model = Net().to(device)
 
-model = torch.load("/homes/nm219/Final-Year-Project/reach_target_50eps_pnpp_homo.pt", map_location=device) #torch.device('cpu'))
+model = Net(3, 3, dim_model=[32, 64, 128, 256, 512], k=16).to(device)
+
+model = torch.load("/homes/nm219/Final-Year-Project/reach_target_10eps_transformer.pt", map_location=device) #torch.device('cpu'))
 model.eval()
+total_params = sum(p.numel() for p in model.parameters())
+print("Number of Parameters: ", total_params)
 
-env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision')
+env = gym.make('reach_target-state-v0', render_mode='human', observation_mode='vision') #reach_target-state-v0
  
 training_steps = 200 #120
 episode_length = 100 #100 #40
 
-runs = 10 #100
-episode_length = 75 #100
+runs = 5 #100
+episode_length = 75 #75 #100
 
 reach_goal = np.array([False]*runs)
 time_to_goal = np.zeros(runs)
@@ -109,6 +135,7 @@ time_to_goal = np.zeros(runs)
 for i in range(runs): 
     policy_pcs = []
     policy_actions = []
+    gripper_poses=[]
     for j in range(episode_length):
         if j == 0:
             print('Reset Episode')
@@ -159,6 +186,8 @@ for i in range(runs):
 
         full_colour_pc_gripper = torch.tensor(full_colour_pc_gripper, dtype=torch.float32)
         
+        gripper_poses.append(gripper_coord)
+        
         downsample = True
         if downsample:
             
@@ -167,22 +196,29 @@ for i in range(runs):
             o3d_pc.colors = o3d.utility.Vector3dVector(full_colour_pc_gripper[:, 3:].numpy())
             
         
-            voxel_size = 0.01  # 0.1 0.05 0.025 0.01 0.005 
+            voxel_size = 0.005  # 0.1 0.05 0.025 0.01 0.005 
             downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
             
             new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
             new_colours = torch.tensor(downsampled_o3d_pc.colors, dtype=torch.float32)
             
-            full_colour_pc_gripper = torch.cat((new_points, new_colours), dim=1)        
+            if len(new_points) > 1:
+                full_colour_pc_gripper = torch.cat((new_points, new_colours), dim=1)        
         
         fixed_sample = False
         if fixed_sample:
-            full_colour_pc_gripper = full_colour_pc_gripper[torch.randperm(full_colour_pc_gripper.size(0))[:50]]
+            full_colour_pc_gripper = full_colour_pc_gripper[torch.randperm(full_colour_pc_gripper.size(0))[:2]]
         
         policy_pcs.append(full_colour_pc_gripper.numpy())
 
-        data = Data(x = full_colour_pc_gripper[:, 3:])
-        data.pos = full_colour_pc_gripper[:, :3]
+        if len(full_colour_pc_gripper) == 1:
+            
+            data = Data(x = full_colour_pc_gripper[3:])
+            data.pos = full_colour_pc_gripper[:3]
+    
+        else:
+            data = Data(x = full_colour_pc_gripper[:, 3:])
+            data.pos = full_colour_pc_gripper[:, :3]
         
         
         # pre_transform = T.NormalizeScale()
@@ -197,10 +233,12 @@ for i in range(runs):
         action = np.zeros(8)
         action[6] = 1
         action[7] = 1
-        pred_action = model(data)
+        # pred_action = model(data)
+
+        pred_action = model(data.x, data.pos, data.batch)
         action[:3] = pred_action.cpu().detach().numpy()
 
-        unnormalise = True
+        unnormalise = True #False
         if unnormalise:
 
             max_x = 0.01
@@ -233,6 +271,7 @@ for i in range(runs):
         try:
             obs, reward, terminate, _ = env.step(action)
         except:
+            j -= 1
             continue
         
         if terminate:
@@ -250,10 +289,11 @@ for i in range(runs):
         # print("How close to action: ", difference-action[:7])
         # print("--------------------")
 
-        env.render()  # Note: rendering increases step time.
+        # env.render()  # Note: rendering increases step time.
     
         if i == 0:
             visualise_policy(policy_pcs, policy_actions)
+            plot_action_seq(full_colour_pc_world, gripper_poses)
         
 
 

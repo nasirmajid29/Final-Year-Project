@@ -437,8 +437,8 @@ for i in range(len(demos)):
         next_gripper_state = all_gripper_states[index+1]
         action = transform_between_frames(frame, next_frame)
         
-        # if not next_gripper_state:
-        #     action[3,0] = 1
+        if not next_gripper_state:
+            action[3,0] = 1
         all_actions.append(action)
 
     all_actions.append(np.zeros((4,4)))

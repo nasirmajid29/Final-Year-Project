@@ -100,8 +100,64 @@ class ComplexPointDataset(Dataset):
                   # print(action.size())
                   action = action.view(1,8)
                   
-                  data = Data(x = point_cloud, y = action)
-                  data.pos = point_cloud[:, :3]
+                  normalise = True # True
+                  unnormalise = False # True
+                  
+                  max_x = 0.01
+                  min_x = -0.01
+                  range_x = max_x - min_x
+                  
+                  max_y = 0.02
+                  min_y = -0.02
+                  range_y = max_y - min_y
+                  
+                  max_z = 0.025
+                  min_z = -0.005
+                  range_z = max_z - min_z
+                  if normalise:
+    
+
+                        action[0][0] = 2*((action[0][0] - min_x) / range_x) - 1
+                        action[0][1] = 2*((action[0][1] - min_y) / range_y) - 1
+                        action[0][2] = 2*((action[0][2] - min_z) / range_z) - 1
+
+                  if unnormalise:
+
+                        action[0][0] = (range_x * (action[0][0] + 1)/2) + min_x    
+                        action[0][1] = (range_y * (action[0][1] + 1)/2) + min_y    
+                        action[0][2] = (range_z * (action[0][2] + 1)/2) + min_z    
+
+
+                  downsample = True
+                  if downsample:
+                        
+                        print("Point cloud before: ", point_cloud.shape)
+                        o3d_pc = o3d.geometry.PointCloud()
+                        o3d_pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3].numpy())
+                        o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
+                        
+                  
+                        voxel_size = 0.05  # 0.1 0.05 0.025 0.01 0.005 
+                        downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
+                        
+                        new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
+                        new_colours = torch.tensor(downsampled_o3d_pc.colors, dtype=torch.float32)
+                        
+                        point_cloud = torch.cat((new_points, new_colours), dim=1)
+                        
+                        print("Point cloud after: ", point_cloud.shape)
+                  
+                  fixed_sample = False
+                  # fixed point sampling
+                  if fixed_sample:
+                        point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:2]]
+                        
+                  pc = o3d.geometry.PointCloud()
+                  pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
+                  pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
+                  normals = torch.Tensor(pc.normals)                
+                  
+                  data = Data(x = point_cloud[:, 3:], y = action, pos = point_cloud[:, :3], normal = normals)
 
                   # print(data.x.size())
                   # print(data.y.size())
@@ -115,9 +171,10 @@ class ComplexPointDataset(Dataset):
             if self.transform is not None:
                   data_list = [self.transform(d) for d in data_list] 
 
-        
-            train_data, test_data = random_split(data_list, [0.8, 0.2])
-
+            num_elems = len(data_list)
+            split_point = round(num_elems * 0.8)
+            train_data, test_data = data_list[:split_point], data_list[split_point:]
+            
             # if self.train:
             torch.save(train_data, f'{self.root}/processed/data_train.pt')
                   # return train_data
