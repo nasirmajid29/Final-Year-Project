@@ -19,7 +19,8 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
-wandb.init(project="test-project", entity="final-year-project")
+data = 'reach_target_200eps'
+wandb.init(project="Mat", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -91,11 +92,11 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.1, 0.05, MLP([9, 32, 64]))
-        self.sa2_module = SAModule(0.05, 0.1, MLP([64 + 3, 128, 256]))
-        self.sa3_module = GlobalSAModule(MLP([256 + 3, 256, 512]))
+        self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32]))
+        self.sa2_module = SAModule(0.05, 0.1, MLP([32 + 3, 64, 128]))
+        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512]))
 
-        self.mlp = MLP([512, 256, 32, 13], dropout=0.5, norm=None)
+        self.mlp = MLP([512, 128, 32, 10], dropout=0.0, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
@@ -163,11 +164,11 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     gpu_usage()
     
-    data_loc = "/vol/bitbucket/nm219/data/reach_target_200eps"
+    data_loc = "/vol/bitbucket/nm219/data/"+data
     # path = osp.join(osp.dirname(osp.realpath(__file__)), '..',
     #                 'data/ModelNet10')
 
-    pre_transform = T.NormalizeScale()
+    pre_transform = None #T.NormalizeScale()
     # transform = T.SamplePoints(64)
     
     point_cloud_data_train = MatComplexPointDataset(data_loc, "data.pt", True, pre_transform)
@@ -187,8 +188,8 @@ if __name__ == '__main__':
     #                          num_workers=6)
 
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=False, num_workers=6) #shuffle true #batch 32
-    test_loader = DataLoader(point_cloud_data_test, batch_size=32, shuffle=False,num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=64, shuffle=False, num_workers=6) #shuffle true #batch 32
+    test_loader = DataLoader(point_cloud_data_test, batch_size=64, shuffle=False,num_workers=6)
     
     # train_x = []
     # train_y = []
@@ -267,16 +268,19 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
 
+    total_params = sum(p.numel() for p in model.parameters())
+    print("Number of Parameters: ", total_params)
+    
     # test_acc, loss = test(test_loader)
     # print(f'Test: {test_acc:.4f}, Loss: {loss:.4f}')
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001) #0.001
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005) #0.001
 
     torch.cuda.empty_cache()
 
     epoch_losses = []
     accuracies = []
-    for epoch in range(30): #201
+    for epoch in range(50): #201
         train(epoch)
         loss = test(test_loader)
         loss = loss.detach().cpu().numpy()
@@ -295,4 +299,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-    torch.save(model, "reach_target_200eps_pnpp.pt")
+        torch.save(model, data+"mat_pnpp.pt")

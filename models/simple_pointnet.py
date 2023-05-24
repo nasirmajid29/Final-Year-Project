@@ -18,6 +18,7 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
+data = "reach_target_10eps"
 wandb.init(project="test-project", entity="final-year-project")
 
 wandb.config.update({
@@ -47,9 +48,9 @@ class Net(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.sa1_module = GlobalSAModule(MLP([9, 64, 128,]))
+        self.sa1_module = GlobalSAModule(MLP([6, 16, 32]))
 
-        self.mlp = MLP([128, 64, 32, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([32, 16, 3], dropout=0.5, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
@@ -85,7 +86,7 @@ def train(epoch):
 
 
     avg_loss = total_loss / len(train_loader)
-    print(f'Epoch: {epoch:03d}, Average Training Loss: {avg_loss:.4f}')
+    print(f'Epoch: {epoch:03d}, Training Loss: {avg_loss:.4f}')
 
     wandb.log({"training loss": avg_loss})
     wandb.watch(model)
@@ -112,9 +113,9 @@ if __name__ == '__main__':
     torch.cuda.empty_cache()
     gpu_usage()
     
-    data_loc = "data/reach_target_100eps"
+    data_loc = "/vol/bitbucket/nm219/data/"+data
     
-    pre_transform = T.NormalizeScale()
+    pre_transform = None #T.NormalizeScale()
     
     point_cloud_data_train = PointDataset(data_loc, "data.pt", True, pre_transform)    
     point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
@@ -144,4 +145,4 @@ if __name__ == '__main__':
         wandb.log({"validation loss": loss})
         wandb.watch(model)
 
-    torch.save(model, "pointnet.pt")
+    torch.save(model, data+"_pointnet.pt")
