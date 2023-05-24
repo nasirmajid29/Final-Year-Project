@@ -11,55 +11,50 @@ import torch
 from torch_geometric.data import Data, Dataset
 
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 def rotation_matrix_quaternion(rot_matrix):
-    """
-    Convert a 3x3 rotation matrix to a quaternion.
-    Input
-    :param rot_matrix: A 3x3 element matrix representing the full 3D rotation matrix. 
-                       This rotation matrix converts a point in the local reference 
-                       frame to a point in the global reference frame.
-    Output
-    :return: A 4 element array representing the quaternion (q0,q1,q2,q3)
-    """
-    # Extract the values from the rotation matrix
-    r00, r01, r02 = rot_matrix[0]
-    r10, r11, r12 = rot_matrix[1]
-    r20, r21, r22 = rot_matrix[2]
-    
-    # Calculate the trace of the rotation matrix
-    trace = r00 + r11 + r22
-    
-    # Calculate the quaternion components based on the trace of the rotation matrix
-    if trace > 0:
-        S = np.sqrt(trace + 1.0) * 2.0
-        q0 = 0.25 * S
-        q1 = (r21 - r12) / S
-        q2 = (r02 - r20) / S
-        q3 = (r10 - r01) / S
-    elif (r00 > r11) and (r00 > r22):
-        S = np.sqrt(1.0 + r00 - r11 - r22) * 2.0
-        q0 = (r21 - r12) / S
-        q1 = 0.25 * S
-        q2 = (r01 + r10) / S
-        q3 = (r02 + r20) / S
-    elif r11 > r22:
-        S = np.sqrt(1.0 + r11 - r00 - r22) * 2.0
-        q0 = (r02 - r20) / S
-        q1 = (r01 + r10) / S
-        q2 = 0.25 * S
-        q3 = (r12 + r21) / S
-    else:
-        S = np.sqrt(1.0 + r22 - r00 - r11) * 2.0
-        q0 = (r10 - r01) / S
-        q1 = (r02 + r20) / S
-        q2 = (r12 + r21) / S
-        q3 = 0.25 * S
-    
-    # Return the quaternion as a numpy array
-    quaternion = torch.Tensor([q0, q1, q2, q3])
-    return quaternion
+      r = R.from_matrix(rot_matrix)
+      quaternion = r.as_quat()
+      return quaternion
 
+    # Extract the values from the rotation matrix
+#     r00, r01, r02 = rot_matrix[0]
+#     r10, r11, r12 = rot_matrix[1]
+#     r20, r21, r22 = rot_matrix[2]
+    
+#     # Calculate the trace of the rotation matrix
+#     trace = r00 + r11 + r22
+    
+#     # Calculate the quaternion components based on the trace of the rotation matrix
+#     if trace > 0:
+#         S = np.sqrt(trace + 1.0) * 2.0
+#         q0 = 0.25 * S
+#         q1 = (r21 - r12) / S
+#         q2 = (r02 - r20) / S
+#         q3 = (r10 - r01) / S
+#     elif (r00 > r11) and (r00 > r22):
+#         S = np.sqrt(1.0 + r00 - r11 - r22) * 2.0
+#         q0 = (r21 - r12) / S
+#         q1 = 0.25 * S
+#         q2 = (r01 + r10) / S
+#         q3 = (r02 + r20) / S
+#     elif r11 > r22:
+#         S = np.sqrt(1.0 + r11 - r00 - r22) * 2.0
+#         q0 = (r02 - r20) / S
+#         q1 = (r01 + r10) / S
+#         q2 = 0.25 * S
+#         q3 = (r12 + r21) / S
+#     else:
+#         S = np.sqrt(1.0 + r22 - r00 - r11) * 2.0
+#         q0 = (r10 - r01) / S
+#         q1 = (r02 + r20) / S
+#         q2 = (r12 + r21) / S
+#         q3 = 0.25 * S
+    
+#     # Return the quaternion as a numpy array
+#     quaternion = torch.Tensor([q0, q1, q2, q3])
+      
 
 
 
