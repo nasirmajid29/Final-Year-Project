@@ -19,6 +19,8 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
+import open3d as o3d
+
 data = 'reach_target_200eps'
 wandb.init(project="Mat", entity="final-year-project", name=data)
 
@@ -145,16 +147,74 @@ def train(epoch):
 def test(loader):
     model.eval()
 
-    # correct = 0
+    total_loss = 0
+    total_translation_error = 0
+    total_rotational_error = 0
+    gripper_correct = 0
     for data in loader:
         data = data.to(device)
         with torch.no_grad():
             pred = model(data)
-            # print("Prediction: ", pred)
-        #     predmax = model(data).max(1)[1]
-        # correct += predmax.eq(data.y).sum().item()
-    return F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
-        
+            
+            loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
+            total_loss += loss
+            
+            max_x = 0.01
+            min_x = -0.01
+            range_x = max_x - min_x
+            
+            max_y = 0.02
+            min_y = -0.02
+            range_y = max_y - min_y
+            
+            max_z = 0.025
+            min_z = -0.005
+            range_z = max_z - min_z
+            
+
+            pred[0] = (range_x * (pred[0] + 1)/2) + min_x    
+            pred[1] = (range_y * (pred[1] + 1)/2) + min_y    
+            pred[2] = (range_z * (pred[2] + 1)/2) + min_z    
+            
+            data.y[0] = (range_x * (data.y[0] + 1)/2) + min_x    
+            data.y[1] = (range_y * (data.y[1] + 1)/2) + min_y    
+            data.y[2] = (range_z * (data.y[2] + 1)/2) + min_z    
+            
+            
+            cm_dist = np.linalg.norm(point2 - point1)
+            total_translational_error += cm_dist
+            
+            mat1 = pred[3:9]
+            mat2 = data.y[3:9]
+            
+            rotation1 = np.reshape(np.array(mat1), (3,2))
+            rotation2 = np.reshape(np.array(mat2), (3,2))
+            
+            # Construct full 3x3 rotation matrices
+            R1 = np.concatenate((rotation1, np.cross(rotation1[:, 0], rotation1[:, 1])[:, np.newaxis]), axis=1)
+            R2 = np.concatenate((rotation2, np.cross(rotation2[:, 0], rotation2[:, 1])[:, np.newaxis]), axis=1)
+            
+            # Convert the rotation matrices to Open3D geometry
+            R1_o3d = o3d.geometry.Geometry3D()
+            R2_o3d = o3d.geometry.Geometry3D()
+            R1_o3d.rotation_matrix = R1
+            R2_o3d.rotation_matrix = R2
+            
+            # Calculate the angle between the rotation matrices
+            angle_in_radians = R1_o3d.get_rotation_angle(R2_o3d)
+            angle_in_degrees = math.degrees(angle_in_radians)
+            
+            total_rotational_error += angle_in_degrees
+            
+            pred[-1] = 0 if pred[-1] < 0.5 else 1
+            if pred[-1] == data.y[-1]:
+                gripper_correct += 1
+            
+    val_loss = total_loss / len(loader)
+    translation_error = total_translational_error / len(loader)
+    rotational_error = total_rotational_error /len(loader)
+    gripper_percentage = gripper_correct / len(loader)
+    return val_loss, translation_error, rotational_error, gripper_percentage
 
 
 if __name__ == '__main__':
@@ -282,13 +342,15 @@ if __name__ == '__main__':
     accuracies = []
     for epoch in range(50): #201
         train(epoch)
-        loss = test(test_loader)
+        loss, translation_error, rotation_error, gripper_correct = test(test_loader)
         loss = loss.detach().cpu().numpy()
         epoch_losses.append(loss)
         # accuracies.append(test_acc)
-        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}')
+        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}, Gripper Correctness: {gripper_correct:.4f}')
+        print(f'Translation Error: {translation_error:.4f}, Rotation Error: {rotation_error:.4f}')
 
-        wandb.log({"validation loss": loss})
+        wandb.log({"validation loss": loss, "translation error": translation_error, 
+                   "rotation_error": rotation_error, "gripper_correct": gripper_correct})
         wandb.watch(model)
 
         # print(loss)

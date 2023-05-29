@@ -232,6 +232,7 @@ def test(loader):
     model.eval()
 
     total_loss = 0
+    total_cm_distance = 0
     for data in loader:
         data = data.to(device)
         with torch.no_grad():
@@ -239,11 +240,39 @@ def test(loader):
             # print("Prediction: ", pred)
         #     predmax = model(data).max(1)[1]
         # correct += predmax.eq(data.y).sum().item()
+        
+        
             loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
             total_loss += loss
             
+            max_x = 0.01
+            min_x = -0.01
+            range_x = max_x - min_x
+            
+            max_y = 0.02
+            min_y = -0.02
+            range_y = max_y - min_y
+            
+            max_z = 0.025
+            min_z = -0.005
+            range_z = max_z - min_z
+            
+
+            pred[0] = (range_x * (pred[0] + 1)/2) + min_x    
+            pred[1] = (range_y * (pred[1] + 1)/2) + min_y    
+            pred[2] = (range_z * (pred[2] + 1)/2) + min_z    
+            
+            data.y[0] = (range_x * (data.y[0] + 1)/2) + min_x    
+            data.y[1] = (range_y * (data.y[1] + 1)/2) + min_y    
+            data.y[2] = (range_z * (data.y[2] + 1)/2) + min_z    
+            
+            
+            cm_dist = np.linalg.norm(point2 - point1)
+            total_cm_distance += cm_dist
+            
     val_loss = total_loss / len(loader)
-    return val_loss
+    cm_off = total_cm_distance / len(loader)
+    return val_loss, cm_off
         
 
 
@@ -422,14 +451,15 @@ if __name__ == '__main__':
     # while conv_loss > 0.005 and epoch < 100:
     # while conv > 0 or epoch < 20:
         train_loss = train(epoch)
-        loss = test(test_loader)
+        loss, translation_error = test(test_loader)
         loss = loss.detach().cpu().numpy()
         epoch_losses.append(loss)
         # accuracies.append(test_acc)
         # scheduler.step()
-        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}')
+        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}, Translation Error: {translation_error:.4f}')
 
         wandb.log({"validation loss": loss})
+        wandb.log({"translation error": translation_error})
         wandb.watch(model)
         
         # prev_loss = conv_loss
