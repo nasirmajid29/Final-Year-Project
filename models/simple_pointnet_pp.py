@@ -25,8 +25,8 @@ import matplotlib.pyplot as plt
 import os
 
 
-data = 'reach_target_10eps'
-wandb.init(project="Correct", entity="final-year-project", name=data)
+data = 'reach_target_20eps'
+wandb.init(project="Demo Num", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -447,4 +447,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-        torch.save(model, data+"_pnpp_longertrain.pt")
+        torch.save(model, data+"_pnpp.pt")
