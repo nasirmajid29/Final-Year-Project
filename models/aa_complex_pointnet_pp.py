@@ -190,16 +190,16 @@ def test(loader):
                 aa1 = pred[i][3:7]
                 aa2 = data.y[i][3:7]
                 
-                q1 = o3d.geometry.Quaternion()
-                q1.set_rotation_vector(aa1)
+                angle1, axis1 = aa1[-1], aa1[:3]
+                angle2, axis2 = aa2[-1], aa2[:3]
                 
-                q2 = o3d.geometry.Quaternion()
-                q2.set_rotation_vector(aa2)
+                axis1 /= np.linalg.norm(axis1)
+                axis2 /= np.linalg.norm(axis2)
                 
-                # Calculate the angle between the quaternions
-                dot_product = q1.dot(q2)
-                angle_in_radians = 2 * math.acos(abs(dot_product))
-                angle_in_degrees = math.degrees(angle_in_radians)
+                dot_product = np.dot(axis1, axis2)
+                dot_product = np.clip(dot_product, -1.0, 1.0)
+                angle_in_radians = np.arccos(dot_product)
+                angle_in_degrees = np.degrees(angle_in_radians)
                 
                 total_rotational_error += angle_in_degrees
                 
