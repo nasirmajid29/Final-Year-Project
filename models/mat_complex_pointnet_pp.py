@@ -20,9 +20,10 @@ import matplotlib.pyplot as plt
 import os
 
 import open3d as o3d
+import math
 
-data = 'reach_target_200eps'
-wandb.init(project="Mat", entity="final-year-project", name=data)
+data = 'pick_and_lift_100eps_mat'
+wandb.init(project="Rotational Representation", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -159,6 +160,8 @@ def test(loader):
             loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
             total_loss += loss
             
+            data.y = data.y.detach().cpu().numpy()
+            pred = pred.detach().cpu().numpy()
             max_x = 0.01
             min_x = -0.01
             range_x = max_x - min_x
@@ -171,47 +174,42 @@ def test(loader):
             min_z = -0.005
             range_z = max_z - min_z
             
-
-            pred[0] = (range_x * (pred[0] + 1)/2) + min_x    
-            pred[1] = (range_y * (pred[1] + 1)/2) + min_y    
-            pred[2] = (range_z * (pred[2] + 1)/2) + min_z    
-            
-            data.y[0] = (range_x * (data.y[0] + 1)/2) + min_x    
-            data.y[1] = (range_y * (data.y[1] + 1)/2) + min_y    
-            data.y[2] = (range_z * (data.y[2] + 1)/2) + min_z    
-            
-            
-            cm_dist = np.linalg.norm(point2 - point1)
-            total_translational_error += cm_dist
-            
-            mat1 = pred[3:9]
-            mat2 = data.y[3:9]
-            
-            rotation1 = np.reshape(np.array(mat1), (3,2))
-            rotation2 = np.reshape(np.array(mat2), (3,2))
-            
-            # Construct full 3x3 rotation matrices
-            R1 = np.concatenate((rotation1, np.cross(rotation1[:, 0], rotation1[:, 1])[:, np.newaxis]), axis=1)
-            R2 = np.concatenate((rotation2, np.cross(rotation2[:, 0], rotation2[:, 1])[:, np.newaxis]), axis=1)
-            
-            # Convert the rotation matrices to Open3D geometry
-            R1_o3d = o3d.geometry.Geometry3D()
-            R2_o3d = o3d.geometry.Geometry3D()
-            R1_o3d.rotation_matrix = R1
-            R2_o3d.rotation_matrix = R2
-            
-            # Calculate the angle between the rotation matrices
-            angle_in_radians = R1_o3d.get_rotation_angle(R2_o3d)
-            angle_in_degrees = math.degrees(angle_in_radians)
-            
-            total_rotational_error += angle_in_degrees
-            
-            pred[-1] = 0 if pred[-1] < 0.5 else 1
-            if pred[-1] == data.y[-1]:
-                gripper_correct += 1
+            for i in range(len(pred)):
+                pred[i][0] = (range_x * (pred[i][0] + 1)/2) + min_x    
+                pred[i][1] = (range_y * (pred[i][1] + 1)/2) + min_y    
+                pred[i][2] = (range_z * (pred[i][2] + 1)/2) + min_z    
+                
+                data.y[i][0] = (range_x * (data.y[i][0] + 1)/2) + min_x    
+                data.y[i][1] = (range_y * (data.y[i][1] + 1)/2) + min_y    
+                data.y[i][2] = (range_z * (data.y[i][2] + 1)/2) + min_z    
+                
+                
+                cm_dist = np.linalg.norm(pred[i][:3] - data.y[i][:3])
+                total_translation_error += cm_dist
+                
+                mat1 = pred[i][3:9]
+                mat2 = data.y[i][3:9]
+                
+                rotation1 = np.reshape(np.array(mat1), (3,2))
+                rotation2 = np.reshape(np.array(mat2), (3,2))
+                
+                R1 = np.column_stack((rotation1, np.cross(rotation1[:, 0], rotation1[:, 1])))
+                R2 = np.column_stack((rotation2, np.cross(rotation2[:, 0], rotation2[:, 1])))
+                
+                dot_product = np.sum(R1 * R2)
+                dot_product = np.clip(dot_product, -1.0, 1.0)
+                
+                angle_in_radians = np.arccos(dot_product)
+                angle_in_degrees = np.degrees(angle_in_radians)
+                               
+                total_rotational_error += angle_in_degrees
+                
+                pred[i][-1] = 0 if pred[i][-1] < 0.5 else 1
+                if pred[i][-1] == data.y[i][-1]:
+                    gripper_correct += 1
             
     val_loss = total_loss / len(loader)
-    translation_error = total_translational_error / len(loader)
+    translation_error = total_translation_error / len(loader)
     rotational_error = total_rotational_error /len(loader)
     gripper_percentage = gripper_correct / len(loader)
     return val_loss, translation_error, rotational_error, gripper_percentage
@@ -361,4 +359,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-        torch.save(model, data+"mat_pnpp.pt")
+        torch.save(model, data+"_mat_pnpp.pt")

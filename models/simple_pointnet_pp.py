@@ -25,8 +25,8 @@ import matplotlib.pyplot as plt
 import os
 
 
-data = 'reach_target_20eps'
-wandb.init(project="Demo Num", entity="final-year-project", name=data)
+data = 'reach_target_50eps'
+wandb.init(project="Extra", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -245,6 +245,8 @@ def test(loader):
             loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
             total_loss += loss
             
+            data.y = data.y.detach().cpu().numpy()
+            pred = pred.detach().cpu().numpy()
             max_x = 0.01
             min_x = -0.01
             range_x = max_x - min_x
@@ -257,19 +259,20 @@ def test(loader):
             min_z = -0.005
             range_z = max_z - min_z
             
-
-            pred[0] = (range_x * (pred[0] + 1)/2) + min_x    
-            pred[1] = (range_y * (pred[1] + 1)/2) + min_y    
-            pred[2] = (range_z * (pred[2] + 1)/2) + min_z    
-            
-            data.y[0] = (range_x * (data.y[0] + 1)/2) + min_x    
-            data.y[1] = (range_y * (data.y[1] + 1)/2) + min_y    
-            data.y[2] = (range_z * (data.y[2] + 1)/2) + min_z    
-            
-            
-            cm_dist = np.linalg.norm(point2 - point1)
-            total_cm_distance += cm_dist
-            
+            for i in range(len(pred)):
+                
+                pred[i][0] = (range_x * (pred[i][0] + 1)/2) + min_x    
+                pred[i][1] = (range_y * (pred[i][1] + 1)/2) + min_y    
+                pred[i][2] = (range_z * (pred[i][2] + 1)/2) + min_z    
+                
+                data.y[i][0] = (range_x * (data.y[i][0] + 1)/2) + min_x    
+                data.y[i][1] = (range_y * (data.y[i][1] + 1)/2) + min_y    
+                data.y[i][2] = (range_z * (data.y[i][2] + 1)/2) + min_z    
+                
+                
+                cm_dist = np.linalg.norm(pred[i][:3] - data.y[i][:3])
+                total_cm_distance += cm_dist
+                
     val_loss = total_loss / len(loader)
     cm_off = total_cm_distance / len(loader)
     return val_loss, cm_off

@@ -19,6 +19,7 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 import open3d as o3d
+import math
 
 data = 'reach_target_200eps'
 wandb.init(project="Angle Axis", entity="final-year-project", name=data)
@@ -158,6 +159,9 @@ def test(loader):
             loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
             total_loss += loss
             
+            
+            data.y = data.y.detach().cpu().numpy()
+            pred = pred.detach().cpu().numpy()
             max_x = 0.01
             min_x = -0.01
             range_x = max_x - min_x
@@ -170,41 +174,41 @@ def test(loader):
             min_z = -0.005
             range_z = max_z - min_z
             
-
-            pred[0] = (range_x * (pred[0] + 1)/2) + min_x    
-            pred[1] = (range_y * (pred[1] + 1)/2) + min_y    
-            pred[2] = (range_z * (pred[2] + 1)/2) + min_z    
-            
-            data.y[0] = (range_x * (data.y[0] + 1)/2) + min_x    
-            data.y[1] = (range_y * (data.y[1] + 1)/2) + min_y    
-            data.y[2] = (range_z * (data.y[2] + 1)/2) + min_z    
-            
-            
-            cm_dist = np.linalg.norm(point2 - point1)
-            total_translational_error += cm_dist
-            
-            aa1 = pred[3:7]
-            aa2 = data.y[3:7]
-            
-            q1 = o3d.geometry.Quaternion()
-            q1.set_rotation_vector(aa1)
-            
-            q2 = o3d.geometry.Quaternion()
-            q2.set_rotation_vector(aa2)
-            
-            # Calculate the angle between the quaternions
-            dot_product = q1.dot(q2)
-            angle_in_radians = 2 * math.acos(abs(dot_product))
-            angle_in_degrees = math.degrees(angle_in_radians)
-            
-            total_rotational_error += angle_in_degrees
-            
-            pred[-1] = 0 if pred[-1] < 0.5 else 1
-            if pred[-1] == data.y[-1]:
-                gripper_correct += 1
+            for i in range(len(pred)):
+                pred[i][0] = (range_x * (pred[i][0] + 1)/2) + min_x    
+                pred[i][1] = (range_y * (pred[i][1] + 1)/2) + min_y    
+                pred[i][2] = (range_z * (pred[i][2] + 1)/2) + min_z    
+                
+                data.y[i][0] = (range_x * (data.y[i][0] + 1)/2) + min_x    
+                data.y[i][1] = (range_y * (data.y[i][1] + 1)/2) + min_y    
+                data.y[i][2] = (range_z * (data.y[i][2] + 1)/2) + min_z    
+                
+                
+                cm_dist = np.linalg.norm(pred[i][:3] - data.y[i][:3])
+                total_translation_error += cm_dist
+                
+                aa1 = pred[i][3:7]
+                aa2 = data.y[i][3:7]
+                
+                q1 = o3d.geometry.Quaternion()
+                q1.set_rotation_vector(aa1)
+                
+                q2 = o3d.geometry.Quaternion()
+                q2.set_rotation_vector(aa2)
+                
+                # Calculate the angle between the quaternions
+                dot_product = q1.dot(q2)
+                angle_in_radians = 2 * math.acos(abs(dot_product))
+                angle_in_degrees = math.degrees(angle_in_radians)
+                
+                total_rotational_error += angle_in_degrees
+                
+                pred[i][-1] = 0 if pred[i][-1] < 0.5 else 1
+                if pred[i][-1] == data.y[i][-1]:
+                    gripper_correct += 1
             
     val_loss = total_loss / len(loader)
-    translation_error = total_translational_error / len(loader)
+    translation_error = total_translation_error / len(loader)
     rotational_error = total_rotational_error /len(loader)
     gripper_percentage = gripper_correct / len(loader)
     return val_loss, translation_error, rotational_error, gripper_percentage
