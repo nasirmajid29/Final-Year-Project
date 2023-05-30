@@ -12,11 +12,12 @@ from torch_geometric.data import Data, Dataset
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+import open3d as o3d
 
 def rotation_matrix_quaternion(rot_matrix):
       r = R.from_matrix(rot_matrix)
       quaternion = r.as_quat()
-      return quaternion
+      return torch.tensor(quaternion, dtype=torch.float32)
 
     # Extract the values from the rotation matrix
 #     r00, r01, r02 = rot_matrix[0]
@@ -91,7 +92,7 @@ class ComplexPointDataset(Dataset):
             for state_action_pair in self.data:
                   point_cloud, action = torch.tensor(state_action_pair[0], dtype=torch.float32), torch.tensor(state_action_pair[1], dtype=torch.float32)
 
-                  action_translate = action[:3, 3].view(-1) #(1,3)
+                  action_translate = action[:3, 3].view(3)
                   matrix = action[:3,:3]
                   action_rotate = rotation_matrix_quaternion(matrix)
                   gripper_state = action[3,0].reshape(1)
@@ -137,7 +138,7 @@ class ComplexPointDataset(Dataset):
                         o3d_pc.colors = o3d.utility.Vector3dVector(point_cloud[:, 3:].numpy())
                         
                   
-                        voxel_size = 0.05  # 0.1 0.05 0.025 0.01 0.005 
+                        voxel_size = 0.005 #0.005  # 0.1 0.05 0.025 0.01 0.005 
                         downsampled_o3d_pc = o3d_pc.voxel_down_sample(voxel_size)
                         
                         new_points = torch.tensor(downsampled_o3d_pc.points, dtype=torch.float32)
