@@ -16,7 +16,7 @@ import open3d as o3d
 
 def rotation_matrix_to_angle_axis(rot_matrix):
       
-      rotation = R.from_matrix(rotation_matrix)
+      rotation = R.from_matrix(rot_matrix)
 
       angle = rotation.magnitude()
       axis = rotation.as_rotvec()
@@ -24,7 +24,7 @@ def rotation_matrix_to_angle_axis(rot_matrix):
       
       angle_axis = np.concatenate((axis, [angle]))
 
-      return angle_axis
+      return torch.tensor(angle_axis, dtype=torch.float32)
 
 class AngleAxisComplexPointDataset(Dataset):
         
@@ -59,14 +59,15 @@ class AngleAxisComplexPointDataset(Dataset):
             for state_action_pair in self.data:
                   point_cloud, action = torch.tensor(state_action_pair[0], dtype=torch.float32), torch.tensor(state_action_pair[1], dtype=torch.float32)
 
-                  action_translate = action[:3, 3].view(1,3)
-                  matrix = action[:3,:3].reshape(9)
+                  action_translate = action[:3, 3].view(3)
+                  matrix = action[:3,:3]#.reshape(9)
                   action_rotate = rotation_matrix_to_angle_axis(matrix)
                   gripper_state = action[3,0].reshape(1)
                   
                   action = np.concatenate((action_translate, action_rotate, gripper_state))
                   # print(action.size())
                   action = action.reshape(1,8)
+                  action = torch.from_numpy(action)
                   
                   normalise = True # True
                   unnormalise = False # True
