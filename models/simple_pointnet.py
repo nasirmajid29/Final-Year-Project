@@ -18,8 +18,8 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
-data = "reach_target_10eps"
-wandb.init(project="test-project", entity="final-year-project")
+data = "take_off_weighing_scales_100eps"
+wandb.init(project="Architectures", entity="final-year-project", name=data+"_pointnet")
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -48,9 +48,9 @@ class Net(torch.nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.sa1_module = GlobalSAModule(MLP([6, 16, 32]))
+        self.sa1_module = GlobalSAModule(MLP([6, 16, 32, 64, 128, 256, 512]))
 
-        self.mlp = MLP([32, 16, 3], dropout=0.5, norm=None)
+        self.mlp = MLP([512, 256, 128, 64, 32, 16, 8], dropout=0.0, norm=None)
 
     def forward(self, data):
         # print(data.dtype)
@@ -95,7 +95,8 @@ def train(epoch):
 def test(loader):
     model.eval()
 
-    # correct = 0
+    total_loss = 0
+    total_cm_distance = 0
     for data in loader:
         data = data.to(device)
         with torch.no_grad():
@@ -103,8 +104,40 @@ def test(loader):
             # print("Prediction: ", pred)
         #     predmax = model(data).max(1)[1]
         # correct += predmax.eq(data.y).sum().item()
-    return F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
-        
+            loss = F.mse_loss(pred, data.y) #, correct / len(loader.dataset),  
+            total_loss += loss
+            
+            data.y = data.y.detach().cpu().numpy()
+            pred = pred.detach().cpu().numpy()
+            max_x = 0.01
+            min_x = -0.01
+            range_x = max_x - min_x
+            
+            max_y = 0.02
+            min_y = -0.02
+            range_y = max_y - min_y
+            
+            max_z = 0.025
+            min_z = -0.005
+            range_z = max_z - min_z
+            
+            for i in range(len(pred)):
+                
+                pred[i][0] = (range_x * (pred[i][0] + 1)/2) + min_x    
+                pred[i][1] = (range_y * (pred[i][1] + 1)/2) + min_y    
+                pred[i][2] = (range_z * (pred[i][2] + 1)/2) + min_z    
+                
+                data.y[i][0] = (range_x * (data.y[i][0] + 1)/2) + min_x    
+                data.y[i][1] = (range_y * (data.y[i][1] + 1)/2) + min_y    
+                data.y[i][2] = (range_z * (data.y[i][2] + 1)/2) + min_z    
+                
+                
+                cm_dist = np.linalg.norm(pred[i][:3] - data.y[i][:3])
+                total_cm_distance += cm_dist
+                
+    val_loss = total_loss / len(loader)
+    cm_off = total_cm_distance / len(loader)
+    return val_loss, cm_off   
 
 
 if __name__ == '__main__':
@@ -121,28 +154,32 @@ if __name__ == '__main__':
     point_cloud_data_test = PointDataset(data_loc, "data.pt", False, pre_transform)
         
 
-    train_loader = DataLoader(point_cloud_data_train, batch_size=32, shuffle=False, num_workers=6) #shuffle true #batch 32
-    test_loader = DataLoader(point_cloud_data_test, batch_size=32, shuffle=False,num_workers=6)
+    train_loader = DataLoader(point_cloud_data_train, batch_size=64, shuffle=False, num_workers=6) #shuffle true #batch 32
+    test_loader = DataLoader(point_cloud_data_test, batch_size=64, shuffle=False,num_workers=6)
     
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Net().to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001) #0.001
+    total_params = sum(p.numel() for p in model.parameters())
+    print("Number of Parameters: ", total_params)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0005) #0.001
 
     torch.cuda.empty_cache()
 
     epoch_losses = []
     accuracies = []
-    for epoch in range(30): #201
+    for epoch in range(50): #201
         train(epoch)
-        loss = test(test_loader)
+        loss, translation_error = test(test_loader)
         loss = loss.detach().cpu().numpy()
         epoch_losses.append(loss)
         # accuracies.append(test_acc)
-        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}')
+        print(f'Epoch: {epoch:03d}, Validation Loss: {loss:.4f}, Translation Error {translation_error:.4f}')
 
         wandb.log({"validation loss": loss})
+        wandb.log({"translation error": translation_error})
         wandb.watch(model)
 
-    torch.save(model, data+"_pointnet.pt")
+        torch.save(model, data+"_pointnet.pt")

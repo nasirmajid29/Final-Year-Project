@@ -17,11 +17,11 @@ from GPUtil import showUtilization as gpu_usage
 from point_dataset import PointDataset
 import pyvista
 import open3d as o3d
-
+import math
 
 degrees, axes, num_layers, downsample, lr = [180, 180, 180], [0, 1, 2], 3, True, 0.01
-batch_size, num_samples, k_neighbors, sampling_ratio, n_epochs = 10, 128, 16, 0.5, 100
-in_channels, hidden_channels, seed, num_shapes = 4, 32, 12345, 4
+batch_size, num_samples, k_neighbors, sampling_ratio, n_epochs = 10, 128, 16, 0.5, 50
+in_channels, hidden_channels, seed, num_shapes = 4, 256, 12345, 4
 
 # list_of_rotations = [RandomRotate(degrees=i, axis=j) for i, j in zip(degrees, axes)]
 # random_rotate = Compose(list_of_rotations)
@@ -31,8 +31,8 @@ in_channels, hidden_channels, seed, num_shapes = 4, 32, 12345, 4
 #     SamplePoints(num=num_samples, include_normals=True),
 # ])
 
-data = 'reach_target_10eps'
-wandb.init(project="Correct", entity="final-year-project", name=data)
+data = 'plug_charger_in_power_supply_100eps'
+wandb.init(project="Architectures", entity="final-year-project", name=data+"_gnn")
 data_loc = "/vol/bitbucket/nm219/data/"+data
 
 pre_transform = None
@@ -93,7 +93,7 @@ class PPFNet(torch.nn.Module):
         return self.classifier(x)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model = PPFNet(in_channels, hidden_channels, 3).to(device)
+model = PPFNet(in_channels, hidden_channels, 8).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 criterion = torch.nn.MSELoss()
 
@@ -127,6 +127,9 @@ def test(model, loader):
     model.eval()
 
     total_loss = 0
+    total_translation_error = 0
+    total_rotational_error = 0
+    gripper_correct = 0
     for data in loader:
         data = data.to(device)
         
@@ -134,6 +137,59 @@ def test(model, loader):
         loss = criterion(pred, data.y)
         
         total_loss += loss 
+        
+        data.y = data.y.detach().cpu().numpy()
+        pred = pred.detach().cpu().numpy()
+        max_x = 0.01
+        min_x = -0.01
+        range_x = max_x - min_x
+        
+        max_y = 0.02
+        min_y = -0.02
+        range_y = max_y - min_y
+        
+        max_z = 0.025
+        min_z = -0.005
+        range_z = max_z - min_z
+        
+        for i in range(len(pred)):
+            
+            pred[i][0] = (range_x * (pred[i][0] + 1)/2) + min_x    
+            pred[i][1] = (range_y * (pred[i][1] + 1)/2) + min_y    
+            pred[i][2] = (range_z * (pred[i][2] + 1)/2) + min_z    
+            
+            data.y[i][0] = (range_x * (data.y[i][0] + 1)/2) + min_x    
+            data.y[i][1] = (range_y * (data.y[i][1] + 1)/2) + min_y    
+            data.y[i][2] = (range_z * (data.y[i][2] + 1)/2) + min_z    
+            
+            
+            cm_dist = np.linalg.norm(pred[i][:3] - data.y[i][:3])
+            total_translation_error += cm_dist
+        
+            quat1 = pred[i][3:7]
+            quat2 = data.y[i][3:7]
+            
+            q1 = np.array(quat1)
+            q2 = np.array(quat2)
+            
+            q1 /= np.linalg.norm(q1)
+            q2 /= np.linalg.norm(q2)
+            
+            dot_product = np.dot(q1, q2)
+            angle_in_radians = 2 * np.arccos(abs(dot_product))
+            angle_in_degrees = math.degrees(angle_in_radians)
+            
+            total_rotational_error += angle_in_degrees
+            
+            pred[i][-1] = 0 if pred[i][-1] < 0.5 else 1
+            if pred[i][-1] == data.y[i][-1]:
+                gripper_correct += 1
+            
+    val_loss = total_loss / len(loader)
+    translation_error = total_translation_error / len(loader)
+    rotational_error = total_rotational_error /len(loader)
+    gripper_percentage = gripper_correct / len(loader)
+    return val_loss, translation_error, rotational_error, gripper_percentage
     
     val_loss = total_loss / len(loader.dataset)    
     return val_loss
