@@ -190,6 +190,22 @@ class PointDataset(Dataset):
                   if fixed_sample:
                         point_cloud = point_cloud[torch.randperm(point_cloud.size(0))[:2]]
                         
+                  add_noise = False #True
+                  if add_noise:
+                        
+                        percentage = 10
+                        mean = 0
+                        std = 0.01                  
+                        
+                        num_points = len(point_cloud)
+                        num_noise_points = int(num_points * (percentage / 100))
+                        
+                        # Generate random indices for the points to add noise
+                        noise_indices = np.random.choice(num_points, num_noise_points, replace=False)
+                        noise = np.random.normal(mean, std, size=(num_noise_points, 3))
+                        point_cloud[noise_indices, :3] += torch.tensor(noise, dtype=torch.float32)
+                        
+                        
                   pc = o3d.geometry.PointCloud()
                   pc.points = o3d.utility.Vector3dVector(point_cloud[:, :3])
                   pc.estimate_normals(search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30))
