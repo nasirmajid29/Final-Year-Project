@@ -22,8 +22,9 @@ from point_dataset import PointDataset
 import wandb
 import math
 import open3d as o3d
+import numpy as np
 
-data = 'reach_target_100eps'
+data = 'take_off_weighing_scales_100eps'
 wandb.init(project="Architectures", entity="final-year-project", name=data+"_transformer")
 data_loc = "/vol/bitbucket/nm219/data/"+data
 pre_transform = None 
@@ -232,14 +233,11 @@ def test(loader):
     rotational_error = total_rotational_error /len(loader)
     gripper_percentage = gripper_correct / len(loader)
     return val_loss, translation_error, rotational_error, gripper_percentage
-    
-    val_loss = total_loss / len(loader.dataset)    
-    return val_loss
 
 if __name__ == '__main__':
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = Net(3, 3, dim_model=[32, 64, 128, 256], k=16).to(device)
+    model = Net(3, 8, dim_model=[32, 64, 128, 256], k=16).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.5)
 
@@ -249,11 +247,13 @@ if __name__ == '__main__':
 
     for epoch in range(30):
         loss = train()
-        val_loss = test(test_loader)
+        val_loss, t_err, r_err, g_acc = test(test_loader)
         print(f'Epoch {epoch:03d}, Train Loss: {loss:.4f}, Val Loss: {val_loss:.4f}')
+        print(f"Translation Error: {t_err:.4f}, Rotation Error: {r_err:.4f}, Gripper Acc: {g_acc:.4f}")
         scheduler.step()
 
         wandb.log({"training loss": loss, "validation loss": val_loss, "epoch": epoch})
+        wandb.log({"translation error": t_err, "rotation error": r_err, "gripper accuracy": g_acc})
         wandb.watch(model)
 
 

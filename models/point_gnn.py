@@ -31,7 +31,7 @@ in_channels, hidden_channels, seed, num_shapes = 4, 256, 12345, 4
 #     SamplePoints(num=num_samples, include_normals=True),
 # ])
 
-data = 'plug_charger_in_power_supply_100eps'
+data = 'take_off_weighing_scales_100eps'
 wandb.init(project="Architectures", entity="final-year-project", name=data+"_gnn")
 data_loc = "/vol/bitbucket/nm219/data/"+data
 
@@ -192,16 +192,19 @@ def test(model, loader):
     return val_loss, translation_error, rotational_error, gripper_percentage
     
     val_loss = total_loss / len(loader.dataset)    
-    return val_loss
+    return val_loss, translation_error, rotational_error, gripper_percentage
 
 
 best_test_acc = 0
 for epoch in range(1, n_epochs + 1):
     loss = train(model, optimizer, train_loader)
-    val_loss = test(model, test_loader)
+    val_loss, t, r, g = test(model, test_loader)
     print(f'Epoch: {epoch:02d}, Train Loss: {loss:.4f}, Val Loss: {val_loss:.4f}')
+    print(f'Translation: {t:.4f}, Rotation: {r:.4f}, Gripper: {g:.4f}')
+
 
     wandb.log({"training loss": loss, "validation loss": val_loss, "epoch": epoch})
+    wandb.log({"translation error": t, "rotational error": r, "gripper accuracy": g})
     wandb.watch(model)
 
     torch.save(model, data+"_gnn.pt")
