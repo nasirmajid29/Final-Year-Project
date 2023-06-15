@@ -21,9 +21,11 @@ import os
 
 import open3d as o3d
 import math
+from positional_encoding import PositionalEncoding
+import torch.nn as nn
 
-data = 'close_box_100eps'
-wandb.init(project="Extra", entity="final-year-project", name=data)
+data = 'take_off_weighing_scales_100eps'
+wandb.init(project="Pos Encoding", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -95,9 +97,13 @@ class Net(torch.nn.Module):
         super().__init__()
 
         # Input channels account for both `pos` and node features.
-        self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32]))
-        self.sa2_module = SAModule(0.05, 0.1, MLP([32 + 3, 64, 128]))
-        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512]))
+        positional_encoding = PositionalEncoding() #, num_freq)
+        pos_net = nn.Sequential(positional_encoding, MLP([9, 16, 32]))
+        self.sa1_module = SAModule(0.5, 0.2, pos_net)
+        
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32], norm=None)) #6
+        self.sa2_module = SAModule(0.05, 0.1, MLP([32 + 3, 64, 128], norm=None))
+        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512], norm=None))
 
         self.mlp = MLP([512, 128, 32, 8], dropout=0.0, norm=None)
 
@@ -359,4 +365,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-        torch.save(model, data+"_quat_pnpp.pt")
+        torch.save(model, data+"_quat_pnpp_posenc.pt")

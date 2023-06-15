@@ -18,7 +18,7 @@ import pyvista
 import matplotlib.pyplot as plt
 import os
 
-data = "take_off_weighing_scales_100eps"
+data = "close_box_100eps"
 wandb.init(project="Architectures", entity="final-year-project", name=data+"_pointnet")
 
 wandb.config.update({

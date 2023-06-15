@@ -22,7 +22,7 @@ import os
 import open3d as o3d
 import math
 
-data = 'pick_and_lift_100eps_mat'
+data = 'take_off_weighing_scales_100eps_mat'
 wandb.init(project="Rotational Representation", entity="final-year-project", name=data)
 
 wandb.config.update({

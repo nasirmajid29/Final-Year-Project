@@ -2,6 +2,7 @@
 import os.path as osp
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 import torch_geometric.transforms as T
@@ -11,8 +12,7 @@ from torch_geometric.nn import MLP, PointConv, fps, global_max_pool, radius
 from torch.nn import Sequential as Seq, Linear as Lin, ReLU
 from torch.optim.lr_scheduler import StepLR
 
-
-
+from positional_encoding import PositionalEncoding
 
 from GPUtil import showUtilization as gpu_usage
 import matplotlib.pyplot as plt
@@ -23,10 +23,12 @@ import wandb
 import pyvista
 import matplotlib.pyplot as plt
 import os
+import torch
+from positional_encodings.torch_encodings import PositionalEncoding3D, Summer
 
 
-data = 'reach_target_50eps'
-wandb.init(project="Extra", entity="final-year-project", name=data)
+data = 'reach_target_100eps'
+wandb.init(project="Pos Encoding", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -138,10 +140,13 @@ class Net(torch.nn.Module):
 
         # self.mlp = MLP([64, 32, 3], dropout=0.5, norm=None)
         
+        positional_encoding = PositionalEncoding() #, num_freq)
+        pos_net = nn.Sequential(positional_encoding, MLP([9, 16, 32]))
+        self.sa1_module = SAModule(0.5, 0.2, pos_net)
         
-        self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32]))
-        self.sa2_module = SAModule(0.25, 0.4, MLP([32 + 3, 64, 128]))
-        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512]))
+        # self.sa1_module = SAModule(0.5, 0.2, MLP([6, 16, 32], norm=None))
+        self.sa2_module = SAModule(0.25, 0.4, MLP([32 + 3, 64, 128], norm=None))
+        self.sa3_module = GlobalSAModule(MLP([128 + 3, 256, 512], norm=None))
 
         self.mlp = MLP([512, 128, 32, 3], dropout=0.0 , norm=None) #0.5
         
@@ -480,4 +485,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-        torch.save(model, data+"_pnpp.pt")
+        torch.save(model, data+"_pnpp_posenc.pt")

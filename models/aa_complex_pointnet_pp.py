@@ -21,8 +21,8 @@ import os
 import open3d as o3d
 import math
 
-data = 'reach_target_200eps'
-wandb.init(project="Angle Axis", entity="final-year-project", name=data)
+data = 'take_off_weighing_scales_100eps_aa'
+wandb.init(project="Rotational Representation", entity="final-year-project", name=data)
 
 wandb.config.update({
   "learning_rate": 0.001,
@@ -358,4 +358,4 @@ if __name__ == '__main__':
     # plt.savefig("pointnet++.png")
     # plt.show()
 
-        torch.save(model, data+"aa_pnpp.pt")
+        torch.save(model, data+"_aa_pnpp.pt")
