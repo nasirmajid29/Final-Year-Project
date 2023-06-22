@@ -292,7 +292,7 @@ def create_transform(translation, rotation):
 
 # print(np.matmul(all_gripper_frames[0], all_actions[0]) - all_gripper_frames[1])
 
-demo_folder = "reach_target_500eps"
+demo_folder = "take_off_weighing_scales_100eps"
 print(demo_folder)
 config = get_config([128,128])
 demos = depth_to_pc(config, demo_folder)
@@ -369,11 +369,11 @@ for i in range(len(demos)):
 
     full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,0] > -1) & (full_colour_pc_world[:,2] > 0.755)]
 
-    red_ball_only = True
+    red_ball_only = False
     box_only = False
     yellow_cube_only = False
     charger_only = False
-    scales_only = False
+    scales_only = True
 
     if red_ball_only:
         full_colour_pc_world = full_colour_pc_world[(full_colour_pc_world[:,3] > 150) & (full_colour_pc_world[:,4] < 115) & (full_colour_pc_world[:,5] < 50)]
@@ -443,6 +443,29 @@ for i in range(len(demos)):
 
     all_actions.append(np.zeros((4,4)))
     
+    add_noise = True
+    if add_noise:
+        
+        percentage = 10
+        mean = 0
+        std = 0.01
+        noisy_point_clouds = []
+    
+        for point_cloud in all_gripper_pc:
+            num_points = len(point_cloud)
+            num_noise_points = int(num_points * (percentage / 100))
+            
+            # Generate random indices for the points to add noise
+            noise_indices = np.random.choice(num_points, num_noise_points, replace=False)
+            
+            # Add noise to the selected points
+            noisy_point_cloud = np.copy(point_cloud)
+            noisy_point_cloud[noise_indices] += np.random.normal(mean, std, size=(num_noise_points, 3))
+            
+            noisy_point_clouds.append(noisy_point_cloud)
+        
+        all_gripper_pc = noisy_point_clouds
+        
     # subsample_size = 5
     # subsampled_gripper_pc = []
     # subsampled_actions = []
@@ -492,7 +515,7 @@ for i in range(len(demos)):
 
 # print(np.array(full_dataset)[0].shape)
 # print(np.array(full_dataset)[1])
-torch.save(full_dataset, '/vol/bitbucket/nm219/data/'+demo_folder+'.pt')
+torch.save(full_dataset, '/vol/bitbucket/nm219/data/'+demo_folder+'_noisy.pt')
 
 
 #/vol/bitbucket/nm219/data/

@@ -1,7 +1,7 @@
 
 import numpy as np
 import pyvista
-# pyvista.start_xvfb()
+pyvista.start_xvfb()
 
 
 def visualise_pc(point_cloud):
@@ -116,7 +116,7 @@ def visualise_policy(point_clouds, actions):
 
 def visualise_world(world, poses, actions):
 
-    plotter = pyvista.Plotter()
+    plotter = pyvista.Plotter(off_screen=True)
     actions_list = []
     
     for point_cloud in world:
@@ -141,4 +141,5 @@ def visualise_world(world, poses, actions):
     plotter.add_arrows(np.array(centres), np.array(actions_list[:-1]))
         
     plotter.add_axes_at_origin()
-    plotter.show()
+    # plotter.show()
+    plotter.screenshot("fullworld.png")
